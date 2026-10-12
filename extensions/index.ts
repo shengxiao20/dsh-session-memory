@@ -17,7 +17,7 @@ import packageJson from "../package.json" with { type: "json" };
 /** Register local cross-session transcript retrieval and source-session migration features. */
 export default function (pi: ExtensionAPI) {
   const jevRuntime = new JevRuntime();
-  pi.on("session_start", async (event, ctx) => {
+  pi.on("session_start", async (_event, ctx) => {
     try {
       const whatsNew = showWhatsNewIfUpdated(packageJson.version);
       if (whatsNew) ctx.ui.notify(whatsNew, "info");
@@ -26,10 +26,6 @@ export default function (pi: ExtensionAPI) {
       const jev = await jevRuntime.ensureReady(config.jevEnable, config.model);
       if (jev.state === "ready") ctx.ui.notify(`[session-memory] jev is ready to review recalled turns with ${config.model}.`, "info");
       if (jev.state === "unavailable") ctx.ui.notify(`[session-memory] jev unavailable; literal recall remains active: ${jev.reason}`, "warning");
-      if (event.reason === "startup" || stats.scannedFiles > 0) {
-        const summary = stats.scannedFiles > 0 ? `synced ${stats.turns} turns from ${stats.scannedFiles} changed session files` : "ready";
-        ctx.ui.notify(`[session-memory] ${summary}. Run /pi-session-memory to open cross-session history actions.`, "info");
-      }
       for (const issue of stats.issues) ctx.ui.notify(`[session-memory] ${issue.error}`, "error");
     } catch (err) { ctx.ui.notify(`[session-memory] history sync failed: ${String(err)}`, "error"); }
   });
