@@ -5,6 +5,31 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.7": `What's New in pi-session-memory v0.7.7
+
+- Obsidian configuration is fully optional: omit obsidianExportEnabled and obsidianVaultPath to keep export disabled by default.
+- Configure obsidianVaultPath only when explicitly enabling export with obsidianExportEnabled: true.`,
+
+  "0.7.6": `What's New in pi-session-memory v0.7.6
+
+- When obsidianExportEnabled is true, every completed history search automatically writes its complete result to one new Markdown note in obsidianVaultPath.
+- No result selection is required, and Obsidian export is not registered as an agent tool or added to agent context.`,
+
+  "0.7.5": `What's New in pi-session-memory v0.7.5
+
+- Configuration-controlled Obsidian export: set obsidianExportEnabled and obsidianVaultPath, then explicitly select displayed search results from the menu.
+- Obsidian export is not registered as an agent tool and is not added to agent context.`,
+
+  "0.7.4": `What's New in pi-session-memory v0.7.4
+
+- Explicitly export selected recalled turns to new Markdown notes in an existing Obsidian vault from the search menu.
+- Exports require exact source turn IDs, never run automatically, and refuse to overwrite an existing note.`,
+
+  "0.7.3": `What's New in pi-session-memory v0.7.3
+
+- Startup history synchronization remains enabled, but the automatic sync summary is no longer displayed when a Pi session starts.
+- Synchronization errors and Jev availability status notifications remain visible.`,
+
   "0.7.2": `What's New in pi-session-memory v0.7.2
 
 - Codex history import now supports optional and repeated message IDs and keeps parent and child threads separate.

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -14,8 +14,10 @@ function cleanup(): void {
   rmSync(historyHome, { recursive: true, force: true });
 }
 cleanup();
+const obsidianVault = join(historyHome, "obsidian-vault");
 mkdirSync(join(historyHome, ".pi", "agent", "pi-session-memory"), { recursive: true });
-writeFileSync(join(historyHome, ".pi", "agent", "pi-session-memory", "config.json"), JSON.stringify({ recallLimit: 2 }));
+mkdirSync(obsidianVault, { recursive: true });
+writeFileSync(join(historyHome, ".pi", "agent", "pi-session-memory", "config.json"), JSON.stringify({ recallLimit: 2, obsidianExportEnabled: true, obsidianVaultPath: obsidianVault }));
 
 const extension = (await import("../extensions/index.ts")).default;
 const events: Array<{ event: string; handler: (...args: any[]) => unknown }> = [];
@@ -47,7 +49,7 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.2/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.7/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);
@@ -69,6 +71,9 @@ assert.match(recallText, /\*\*Model:\*\* nimble/);
 assert.match(recallText, /\*\*Context window:\*\* unavailable tokens/);
 assert.match(recallText, /\*\*Segmented turns:\*\* 0/);
 assert.match(recallText, /\*\*Reason:\*\* jevEnable is false/);
+const exportedNotes = readdirSync(obsidianVault);
+assert.equal(exportedNotes.length, 1, "every completed recall tool search must export one complete note when enabled");
+assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Recall search/);
 
 const reviewFiltered = tools.find((tool) => tool.name === "review_jev_filtered");
 assert.ok(reviewFiltered);

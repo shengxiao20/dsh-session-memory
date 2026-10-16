@@ -12,6 +12,7 @@ process.env.USERPROFILE = historyHome; // os.homedir() uses USERPROFILE on Windo
 const { getDb, getHistoryStats, getSession, insertTurn, upsertSession } = await import("../src/db.ts");
 const { fetchSession } = await import("../src/fetch-session.ts");
 const { formatRecallResults, recallTurns } = await import("../src/retriever.ts");
+const { exportSearchResultsToObsidian } = await import("../src/obsidian-export.ts");
 const { formatProjectRecallResults, recallProjectMemory } = await import("../src/project-retriever.ts");
 const { backfillAll, syncChangedHistory } = await import("../src/backfill.ts");
 const { migrateClaudeProjectSessions, migrateCodexProjectSessions } = await import("../src/session-migration.ts");
@@ -34,10 +35,10 @@ const currentWhatsNew = getWhatsNew("0.7.0");
 assert.match(currentWhatsNew, /What.s New in pi-session-memory v0\.7\.0/);
 assert.match(currentWhatsNew, /One command only: use the \/pi-session-memory folded menu/);
 assert.doesNotMatch(currentWhatsNew, /pi-session-memory-helper|memory-search|memory-status/);
-assert.match(readFileSync(join(process.cwd(), "README.md"), "utf8"), /Current version: 0\.7\.2/);
-const codexWhatsNew = getWhatsNew("0.7.2");
-assert.match(codexWhatsNew, /parent and child threads separate/);
-assert.match(codexWhatsNew, /reparsed once/);
+assert.match(readFileSync(join(process.cwd(), "README.md"), "utf8"), /Current version: 0\.7\.7/);
+const obsidianWhatsNew = getWhatsNew("0.7.7");
+assert.match(obsidianWhatsNew, /fully optional/);
+assert.match(obsidianWhatsNew, /disabled by default/);
 const whatsNew = getWhatsNew("0.6.2");
 assert.match(whatsNew, /What.s New in pi-session-memory v0\.6\.2/);
 assert.match(whatsNew, /Named-project recall/);
@@ -51,16 +52,22 @@ rmSync(join(historyHome, ".pi", "agent", "pi-session-memory"), { recursive: true
 mkdirSync(join(historyHome, ".pi", "agent", "pi-session-memory"), { recursive: true });
 const configPath = join(historyHome, ".pi", "agent", "pi-session-memory", "config.json");
 writeFileSync(configPath, JSON.stringify({ recallLimit: 2 }));
-assert.deepEqual(getSessionMemoryConfig(), { recallLimit: 2, jevEnable: false, model: "nimble" }, "legacy config must use backward-compatible defaults");
+assert.deepEqual(getSessionMemoryConfig(), { recallLimit: 2, jevEnable: false, model: "nimble", obsidianExportEnabled: false, obsidianVaultPath: undefined }, "legacy config must use backward-compatible defaults");
 for (const model of JEV_MODELS) {
   writeFileSync(configPath, JSON.stringify({ recallLimit: 2, jevEnable: true, model }));
-  assert.deepEqual(getSessionMemoryConfig(), { recallLimit: 2, jevEnable: true, model });
+  assert.deepEqual(getSessionMemoryConfig(), { recallLimit: 2, jevEnable: true, model, obsidianExportEnabled: false, obsidianVaultPath: undefined });
 }
 writeFileSync(configPath, JSON.stringify({ recallLimit: 2, model: "unsupported" }));
 assert.throws(() => getSessionMemoryConfig(), /model must be one of nimble, tev1:4b, tev1:0.8b/);
+writeFileSync(configPath, JSON.stringify({ recallLimit: 2, obsidianExportEnabled: true }));
+assert.throws(() => getSessionMemoryConfig(), /obsidianVaultPath must be a non-empty string/);
+writeFileSync(configPath, JSON.stringify({ recallLimit: 2, obsidianExportEnabled: true, obsidianVaultPath: "/vault" }));
+assert.deepEqual(getSessionMemoryConfig(), { recallLimit: 2, jevEnable: false, model: "nimble", obsidianExportEnabled: true, obsidianVaultPath: "/vault" });
 writeFileSync(configPath, JSON.stringify({ recallLimit: 2 }));
 
 for (const toolName of ["recall_memory", "recall_project_memory", "fetch_session", "get_memory_stats", "backfill_memory", "migrate_project_sessions"]) assert.match(extensionSource, new RegExp(`name: "${toolName}"`));
+assert.doesNotMatch(extensionSource, /name: "export_recall_to_obsidian"/);
+assert.match(SESSION_MEMORY_HELP, /obsidianExportEnabled/);
 assert.doesNotMatch(extensionSource, /name: "migrate_(claude|codex)_project_sessions"/);
 assert.match(extensionSource, /Search project history/);
 assert.doesNotMatch(extensionSource, /"memory-project-search"/);
@@ -171,6 +178,15 @@ assert.deepEqual(windowsMigration.issues, []);
 assert.equal(windowsMigration.migratedSessions, 1, "equivalent Windows CWD spellings must migrate");
 assert.equal(windowsMigration.migratedMessages, 2);
 assert.ok(existsSync(join(historyHome, ".pi", "agent", "sessions", "--C--Users-Michael-project--")));
+
+const obsidianVault = join(historyHome, "obsidian-vault");
+mkdirSync(obsidianVault, { recursive: true });
+const exportResult = exportSearchResultsToObsidian(obsidianVault, "Recall search", "# Recall results\n\n**Results:** 0");
+assert.match(readFileSync(exportResult.file, "utf8"), /# Recall search/);
+assert.match(readFileSync(exportResult.file, "utf8"), /\*\*Results:\*\* 0/);
+const nextExport = exportSearchResultsToObsidian(obsidianVault, "Recall search", "No matching conversation history.");
+assert.notEqual(nextExport.file, exportResult.file, "each search export needs its own note");
+assert.throws(() => exportSearchResultsToObsidian(join(historyHome, "missing-vault"), "Recall search", "results"), /Obsidian vault does not exist/);
 
 getDb().close();
 cleanup();

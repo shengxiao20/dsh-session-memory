@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.2**
+**Current version: 0.7.7**
 
 ## Install
 
@@ -8,7 +8,7 @@
 pi install npm:pi-session-memory
 ```
 
-A local-first Pi extension for **on-demand cross-session transcript search with optional local Jev semantic relevance filtering** across Pi, Claude Code, and Codex, plus native project-session migration to Pi `/resume` sessions.
+Local-first cross-session & cross-agent dialogue search based on sqlite with optional local Jev semantic relevance filtering, or direct session migration from Claude Code and Codex to Pi, and optional Obsidian export, compatible in Chinese and English.
 
 ## What it does
 
@@ -21,6 +21,36 @@ A local-first Pi extension for **on-demand cross-session transcript search with 
 - Matches equivalent Windows project CWDs during migration, including `\\` versus `/`, drive-letter case, and trailing separators.
 
 Search results are derived from stored source transcripts only and are never automatically injected into model context. Put project rules and preferences in `AGENTS.md`.
+
+## Obsidian export
+
+Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
+
+Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.7
+
+- **Optional Obsidian configuration:** `obsidianExportEnabled` and `obsidianVaultPath` can both be omitted; export remains disabled by default. Configure a vault path only when explicitly enabling export.
+
+## What's new in 0.7.6
+
+- **Automatic per-search Obsidian notes:** with `obsidianExportEnabled`, every completed history search writes its complete result to one new Markdown note in `obsidianVaultPath` without selection.
+- **No agent exposure:** Obsidian export is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.5
+
+- **Configuration-controlled Obsidian export:** configure its vault location with `obsidianExportEnabled` and `obsidianVaultPath`.
+- **No agent exposure:** Obsidian export is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.4
+
+- **Explicit Obsidian export:** selectively write displayed recall results to new Markdown notes in an existing vault.
+- **Safe writes:** exports require exact source turn IDs and refuse missing vaults, invalid selections, and existing target files.
+
+## What's new in 0.7.3
+
+- **Startup notifications:** history synchronization remains enabled, while the automatic sync summary is no longer displayed when a Pi session starts.
+- **Operational notices:** synchronization errors and Jev availability status notifications remain visible.
 
 ## What's new in 0.7.2
 
@@ -61,6 +91,7 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 session_start -> syncChangedHistory() -> SQLite raw transcript index
 no project context -> recall_memory(bilingual topic entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
 current or named project -> recall_memory(bilingual topic entities) + recall_project_memory(project metadata + identical bilingual topic entities) -> prioritize project-scoped turns or session candidates -> fetch_session (optional, read-only)
+enabled export -> every completed history search -> one complete result Markdown note in the configured existing Obsidian vault
 project migration command/tool -> native Pi session JSONL -> /resume
 ```
 
@@ -72,7 +103,7 @@ The extension reads its optional global configuration from:
 ~/.pi/agent/pi-session-memory/config.json
 ```
 
-Create or edit that JSON file to configure recall volume and optional Jev relevance filtering:
+Create or edit that JSON file to configure recall volume and optional Jev relevance filtering. Obsidian fields are not required:
 
 ```json
 {
@@ -82,9 +113,20 @@ Create or edit that JSON file to configure recall volume and optional Jev releva
 }
 ```
 
+To explicitly enable automatic Obsidian export, add both fields:
+
+```json
+{
+  "obsidianExportEnabled": true,
+  "obsidianVaultPath": "/absolute/path/to/existing/Obsidian Vault"
+}
+```
+
 Configuration fields:
 
 - `recallLimit`: required positive integer. `recall_memory` and `recall_project_memory` return at most this many ranked turns.
+- `obsidianExportEnabled`: optional boolean; defaults to `false`. When `true`, every completed history search automatically writes one complete result note.
+- `obsidianVaultPath`: required non-empty path when `obsidianExportEnabled` is `true`. It must identify an existing vault directory when a search is exported.
 - `jevEnable`: optional boolean, default `false`. Set it to `true` to have local Jev review already-ranked turns against the complete user question and filter keyword-only false positives.
 - `model`: optional Jev/Ollama model, default `nimble`. Allowed values are `nimble`, `tev1:4b`, and `tev1:0.8b`.
 

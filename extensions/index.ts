@@ -4,6 +4,7 @@ import { writeTurn } from "../src/writer.ts";
 import { getHistoryStats } from "../src/db.ts";
 import { fetchSession } from "../src/fetch-session.ts";
 import { formatRecallResults, recallTurns } from "../src/retriever.ts";
+import { exportSearchResultsToObsidian } from "../src/obsidian-export.ts";
 import { formatProjectRecallResults, recallProjectMemory } from "../src/project-retriever.ts";
 import { backfillAll, syncChangedHistory, type BackfillStats } from "../src/backfill.ts";
 import { migrateClaudeProjectSessions, migrateCodexProjectSessions, type ProjectSessionMigrationStats } from "../src/session-migration.ts";
@@ -67,7 +68,9 @@ export default function (pi: ExtensionAPI) {
     async execute(_id, options, _signal, update) {
       const literalResults = recallTurns(options);
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literalResults, (message) => update({ content: [{ type: "text", text: message }] }));
-      return { content: [{ type: "text" as const, text: `${_jevSummary(reviewed.stats)}\n\n${formatRecallResults(reviewed.results, options)}` }], details: { returnedResults: reviewed.results.length, results: reviewed.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
+      const text = `${_jevSummary(reviewed.stats)}\n\n${formatRecallResults(reviewed.results, options)}`;
+      _exportSearchResultsIfEnabled("Recall search", text);
+      return { content: [{ type: "text" as const, text }], details: { returnedResults: reviewed.results.length, results: reviewed.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
   });
   pi.registerTool({
@@ -87,7 +90,9 @@ export default function (pi: ExtensionAPI) {
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literalResult.results, (message) => update({ content: [{ type: "text", text: message }] }));
       const retainedSessionIds = new Set(reviewed.results.map((turn) => turn.session_id));
       const result = { ...literalResult, results: reviewed.results, sessions: literalResult.sessions.filter((session) => retainedSessionIds.has(session.session_id)) };
-      return { content: [{ type: "text" as const, text: `${_jevSummary(reviewed.stats)}\n\n${formatProjectRecallResults(result, options)}` }], details: { project: options.project, totalSessions: result.sessions.length, returnedResults: result.results.length, sessions: result.sessions, results: result.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
+      const text = `${_jevSummary(reviewed.stats)}\n\n${formatProjectRecallResults(result, options)}`;
+      _exportSearchResultsIfEnabled("Project recall search", text);
+      return { content: [{ type: "text" as const, text }], details: { project: options.project, totalSessions: result.sessions.length, returnedResults: result.results.length, sessions: result.sessions, results: result.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
   });
   pi.registerTool({
@@ -106,7 +111,9 @@ export default function (pi: ExtensionAPI) {
     async execute(_id, options, _signal, update) {
       const literal = options.project === undefined ? recallTurns(options) : recallProjectMemory({ ...options, project: options.project }).results;
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literal, (message) => update({ content: [{ type: "text", text: message }] }));
-      return { content: [{ type: "text" as const, text: `${_jevSummary(reviewed.stats)}\n\n${_formatJevFilteredOut(reviewed.filteredOut)}` }], details: { returnedResults: reviewed.filteredOut.length, results: reviewed.filteredOut, jev: reviewed.stats } };
+      const text = `${_jevSummary(reviewed.stats)}\n\n${_formatJevFilteredOut(reviewed.filteredOut)}`;
+      _exportSearchResultsIfEnabled("Jev filtered recall search", text);
+      return { content: [{ type: "text" as const, text }], details: { returnedResults: reviewed.filteredOut.length, results: reviewed.filteredOut, jev: reviewed.stats } };
     },
   });
   pi.registerTool({
@@ -160,7 +167,10 @@ async function _openSessionMemoryMenu(ctx: ExtensionCommandContext): Promise<voi
 async function _searchHistoryFromMenu(ctx: ExtensionCommandContext): Promise<void> {
   const entities = _bilingualTopics(await ctx.ui.input("Search local history", "Chinese topic | English topic"));
   if (!entities) return;
-  ctx.ui.notify(formatRecallResults(recallTurns({ entities }), { entities }), "info");
+  const results = recallTurns({ entities });
+  const text = formatRecallResults(results, { entities });
+  ctx.ui.notify(text, "info");
+  _exportSearchResultsIfEnabled("Menu recall search", text);
 }
 
 async function _searchProjectHistoryFromMenu(ctx: ExtensionCommandContext): Promise<void> {
@@ -171,7 +181,15 @@ async function _searchProjectHistoryFromMenu(ctx: ExtensionCommandContext): Prom
   const options = { project, entities };
   const projectResults = recallProjectMemory(options);
   const globalResults = recallTurns({ entities });
-  ctx.ui.notify(`${formatProjectRecallResults(projectResults, options)}\n\n---\n\n${formatRecallResults(globalResults, { entities })}`, "info");
+  const text = `${formatProjectRecallResults(projectResults, options)}\n\n---\n\n${formatRecallResults(globalResults, { entities })}`;
+  ctx.ui.notify(text, "info");
+  _exportSearchResultsIfEnabled("Menu project recall search", text);
+}
+
+function _exportSearchResultsIfEnabled(title: string, content: string): void {
+  const config = getSessionMemoryConfig();
+  if (!config.obsidianExportEnabled) return;
+  exportSearchResultsToObsidian(config.obsidianVaultPath!, title, content);
 }
 
 function _bilingualTopics(value: string | undefined): string[] | undefined {
