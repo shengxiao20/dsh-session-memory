@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.12**
+**Current version: 0.7.13**
 
 ## Install
 
@@ -28,7 +28,7 @@ Obsidian export is optional and disabled by default: omit both `obsidianExportEn
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
 
-## What's new in 0.7.12
+## What's new in 0.7.13
 
 - **Complementary recall responsibilities:** `recall_memory` searches all transcript content globally, while `recall_project_memory` searches sessions belonging to the named project.
 - **Mandatory paired invocation:** prior-work questions involving the current project or any named project, repository, application, agent, service, or codebase must call both tools with identical entities and question.

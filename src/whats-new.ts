@@ -5,7 +5,7 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
-  "0.7.12": `What's New in pi-session-memory v0.7.12
+  "0.7.13": `What's New in pi-session-memory v0.7.13
 
 - recall_memory searches all transcript content globally, while recall_project_memory searches sessions belonging to the named project; these responsibilities are complementary.
 - Prior-work questions involving the current project or any named project, repository, application, agent, service, or codebase must call both tools with identical entities and question.
