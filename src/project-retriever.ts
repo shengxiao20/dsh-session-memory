@@ -1,20 +1,17 @@
 import { getDb } from "./db.ts";
 import { getRecallLimit } from "./config.ts";
-import { type HistorySource, type RecallTurnResult, recallTurns } from "./retriever.ts";
+import { type RecallTurnResult, recallTurns } from "./retriever.ts";
 
 export interface ProjectRecallOptions {
   /** Project directory name used only to resolve stored session CWDs. */
   project: string;
   /** Literal topic terms used only to search turns within resolved project sessions. */
   entities: string[];
-  sources?: HistorySource[];
-  after?: number;
-  before?: number;
 }
 
 export interface ProjectSessionCandidate {
   session_id: string;
-  source: HistorySource;
+  source: "pi" | "claude" | "codex";
   cwd: string;
   started_at: number;
   turn_count: number;
@@ -30,7 +27,7 @@ export interface ProjectRecallResult {
 export function recallProjectMemory(options: ProjectRecallOptions): ProjectRecallResult {
   const projectSessions = findProjectSessions(options);
   const results = projectSessions.length
-    ? recallTurns({ entities: options.entities, sessionIds: projectSessions.map((session) => session.session_id), sources: options.sources, after: options.after, before: options.before })
+    ? recallTurns({ entities: options.entities, sessionIds: projectSessions.map((session) => session.session_id) })
     : [];
   const resultSessionIds = new Set(results.map((result) => result.session_id));
   const sessions = results.length
@@ -40,17 +37,11 @@ export function recallProjectMemory(options: ProjectRecallOptions): ProjectRecal
 }
 
 /** Find sessions whose final CWD directory name contains every normalized named-project token. */
-export function findProjectSessions(options: Pick<ProjectRecallOptions, "project" | "sources" | "after" | "before">): ProjectSessionCandidate[] {
-  const filters: string[] = [];
-  const parameters: Array<string | number> = [];
-  if (options.sources?.length) { filters.push(`sessions.source IN (${options.sources.map(() => "?").join(", ")})`); parameters.push(...options.sources); }
-  if (options.after !== undefined) { filters.push("turns.ts >= ?"); parameters.push(options.after); }
-  if (options.before !== undefined) { filters.push("turns.ts <= ?"); parameters.push(options.before); }
-  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+export function findProjectSessions(options: Pick<ProjectRecallOptions, "project">): ProjectSessionCandidate[] {
   const rows = getDb().prepare(`SELECT sessions.session_id, sessions.source, sessions.cwd, sessions.started_at, count(turns.turn_id) AS turn_count,
     (SELECT first_turn.user_text FROM turns AS first_turn WHERE first_turn.session_id = sessions.session_id ORDER BY first_turn.turn_index LIMIT 1) AS first_user_text
-    FROM sessions JOIN turns ON turns.session_id = sessions.session_id ${where}
-    GROUP BY sessions.session_id ORDER BY sessions.started_at DESC, sessions.session_id`).all(...parameters) as ProjectSessionCandidate[];
+    FROM sessions JOIN turns ON turns.session_id = sessions.session_id
+    GROUP BY sessions.session_id ORDER BY sessions.started_at DESC, sessions.session_id`).all() as ProjectSessionCandidate[];
   const projectTokens = _projectTokens(options.project);
   if (!projectTokens.length) throw new Error("Project must contain at least one letter or number");
   return rows.filter((session) => projectTokens.every((token) => _projectTokens(_cwdProjectName(session.cwd)).includes(token)));

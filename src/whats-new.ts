@@ -5,6 +5,16 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.11": `What's New in pi-session-memory v0.7.11
+
+- recall_project_memory no longer accepts source or time filters and always searches every turn in all sessions resolved from project.
+- Its public parameters are now limited to project, literal topic entities, and the complete question.`,
+
+  "0.7.10": `What's New in pi-session-memory v0.7.10
+
+- recall_memory now always searches every indexed SQLite turn and exposes no CWD, project, source, session, or time scope.
+- Its public parameters are limited to literal topic entities and the complete question, preventing accidental narrowing of global recall.`,
+
   "0.7.9": `What's New in pi-session-memory v0.7.9
 
 - When jevEnable is false, global and project recall now show only recall results without a redundant disabled Jev status section.

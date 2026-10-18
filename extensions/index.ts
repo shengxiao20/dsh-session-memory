@@ -55,19 +55,16 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_memory", label: "Search Cross-Session History",
-    description: "Search all indexed Pi, Claude Code, and Codex transcript history using 2-8 specific literal topic entities. This tool is always global and has no CWD or project scope. When a current or explicitly named project is relevant, also call recall_project_memory with the same bilingual entities and prioritize its evidence. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
-    promptSnippet: "Always search globally across all indexed projects; never scope this tool by the current CWD. Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. When a current or explicitly named project is relevant, also call recall_project_memory with the identical entities and prioritize its results. Fetch a smallest useful session range when excerpts need context.",
+    description: "Search every indexed Pi, Claude Code, and Codex transcript turn using 2-8 specific literal topic entities. This tool is always global: it has no CWD, project, source, session, or time scope. When a current or explicitly named project is relevant, also call recall_project_memory with the same bilingual entities and prioritize its evidence. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
+    promptSnippet: "Always search every indexed transcript turn; this tool cannot be scoped. Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. When a current or explicitly named project is relevant, also call recall_project_memory with the identical entities and prioritize its results. Fetch a smallest useful session range when excerpts need context.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
-      sources: Type.Optional(Type.Array(Type.Union([Type.Literal("pi"), Type.Literal("claude"), Type.Literal("codex")]))),
-      after: Type.Optional(Type.Number()),
-      before: Type.Optional(Type.Number()),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal recall candidate." }),
     }),
     async execute(_id, options, _signal, update) {
-      const literalResults = recallTurns(options);
+      const literalResults = recallTurns(options.entities);
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literalResults, (message) => update({ content: [{ type: "text", text: message }] }));
-      const text = _withOptionalJevSummary(reviewed.stats, formatRecallResults(reviewed.results, options));
+      const text = _withOptionalJevSummary(reviewed.stats, formatRecallResults(reviewed.results, { entities: options.entities }));
       _exportSearchResultsIfEnabled("Recall search", text);
       return { content: [{ type: "text" as const, text }], details: { returnedResults: reviewed.results.length, results: reviewed.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
@@ -78,10 +75,7 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "Use alongside recall_memory when a current or explicitly named project is relevant, with identical Chinese-and-English topic entities. Put the user-supplied project name only in project, never in entities; its normalized words match the final CWD directory name and it may be absent from that project's own transcript.",
     parameters: Type.Object({
       project: Type.String({ minLength: 1, description: "Project name. Used only to match its normalized words against the final directory name of stored session CWDs (for example, pi app matches pi-native-app); do not repeat it in entities." }),
-      entities: Type.Array(Type.String({ minLength: 1, description: "The same Chinese-and-English literal topic entities used for recall_memory. Search only resolved project sessions; never include the project name here." }), { minItems: 2, maxItems: 8 }),
-      sources: Type.Optional(Type.Array(Type.Union([Type.Literal("pi"), Type.Literal("claude"), Type.Literal("codex")]))),
-      after: Type.Optional(Type.Number()),
-      before: Type.Optional(Type.Number()),
+      entities: Type.Array(Type.String({ minLength: 1, description: "The same Chinese-and-English literal topic entities used for recall_memory. Search every turn in the resolved project sessions; never include the project name here." }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal project recall candidate." }),
     }),
     async execute(_id, options, _signal, update) {
@@ -96,18 +90,15 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "review_jev_filtered", label: "Review Jev-Filtered Recall Evidence",
-    description: "Re-run literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after a recall; supply the same entities, question, and optional source, time, or project scopes as the original recall. Without project, the review is always global and cannot be scoped by CWD.",
-    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities, complete question, and optional source, time, or project filters. Never scope a global review by the current CWD.",
+    description: "Re-run literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after a recall; supply the same entities and question, plus project only when reviewing project recall. Without project, the review is global.",
+    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities and complete question. Supply project only when reviewing project recall; no other scope is available.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete original user question used for Jev relevance judgment." }),
-      project: Type.Optional(Type.String({ minLength: 1, description: "Optional project name; when provided, review only candidates resolved for this project." })),
-      sources: Type.Optional(Type.Array(Type.Union([Type.Literal("pi"), Type.Literal("claude"), Type.Literal("codex")]))),
-      after: Type.Optional(Type.Number()),
-      before: Type.Optional(Type.Number()),
+      project: Type.Optional(Type.String({ minLength: 1, description: "Optional project name; when provided, review every matching candidate from the resolved project sessions." })),
     }),
     async execute(_id, options, _signal, update) {
-      const literal = options.project === undefined ? recallTurns(options) : recallProjectMemory({ ...options, project: options.project }).results;
+      const literal = options.project === undefined ? recallTurns(options.entities) : recallProjectMemory({ project: options.project, entities: options.entities }).results;
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literal, (message) => update({ content: [{ type: "text", text: message }] }));
       const text = `${_jevSummary(reviewed.stats)}\n\n${_formatJevFilteredOut(reviewed.filteredOut)}`;
       _exportSearchResultsIfEnabled("Jev filtered recall search", text);

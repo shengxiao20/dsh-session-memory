@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.9**
+**Current version: 0.7.11**
 
 ## Install
 
@@ -13,7 +13,7 @@ Local-first cross-session & cross-agent dialogue search based on sqlite with opt
 ## What it does
 
 - Indexes local Pi, Claude Code, and Codex JSONL transcript turns in local SQLite.
-- Provides `recall_memory` for global literal raw-history search across every indexed project. It has no CWD or project parameter, so project scoping cannot accidentally restrict global recall.
+- Provides `recall_memory` for unconditional global literal search across every indexed turn. Its public interface accepts only topic entities and the complete question, so CWD, project, source, session, and time filters cannot restrict it.
 - Provides `recall_project_memory` alongside direct recall whenever a current or named project is relevant: the project matches stored session CWD metadata and the identical bilingual topic entities search only those sessions.
 - Provides `fetch_session` for read-only expansion of the smallest useful transcript range.
 - Synchronizes changed history at Pi session start; the `/pi-session-memory` menu provides explicit full history import.
@@ -27,6 +27,16 @@ Search results are derived from stored source transcripts only and are never aut
 Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.11
+
+- **Uninterrupted project recall:** `recall_project_memory` no longer accepts source or time filters; it always searches every turn in sessions resolved from `project`.
+- **Minimal project interface:** project recall now accepts only `project`, `entities`, and `question`.
+
+## What's new in 0.7.10
+
+- **Every-turn global recall:** `recall_memory` now has no CWD, project, source, session, or time scope; it always searches all indexed SQLite turns.
+- **Unscopeable interface:** only `entities` and `question` remain in its public parameters, preventing agents from silently narrowing global searches.
 
 ## What's new in 0.7.9
 
@@ -88,8 +98,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 | Tool | Use when |
 | --- | --- |
-| `recall_memory` | Always search all indexed projects using 2–8 specific literal topic entities, including Chinese and English equivalents. It has no CWD or project scope. When a current or named project is relevant, also call `recall_project_memory`. |
-| `recall_project_memory` | Call alongside `recall_memory` whenever a current or explicitly named project is relevant. Reuse identical Chinese-and-English topic entities; put the project name only in `project`, never in `entities`, and prioritize its evidence. Its normalized words match the stored CWD directory name, so `pi app` can resolve `pi-native-app`. |
+| `recall_memory` | Always search every indexed SQLite turn using 2–8 specific literal topic entities, including Chinese and English equivalents. It cannot be restricted by CWD, project, source, session, or time. When project context is relevant, also call `recall_project_memory`. |
+| `recall_project_memory` | Call alongside `recall_memory` whenever a current or explicitly named project is relevant. It accepts only `project`, identical bilingual `entities`, and `question`; it searches every turn in all resolved project sessions. Put the project name only in `project`, never in `entities`. |
 | `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
 | `get_memory_stats` | The user asks how much local history is indexed. |
 | `backfill_memory` | The user explicitly asks to import, backfill, or rescan history. |

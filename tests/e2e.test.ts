@@ -49,7 +49,7 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.9/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.11/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);
@@ -64,7 +64,10 @@ assert.match(result.content[0]?.text ?? "", /0 turns across 0 sessions/);
 const recall = tools.find((tool) => tool.name === "recall_memory");
 assert.ok(recall);
 assert.match(recall.description, /always global/);
-assert.doesNotMatch(JSON.stringify(recall.parameters), /"cwd"/, "global recall must not expose CWD scoping");
+const recallParameters = JSON.stringify(recall.parameters);
+for (const forbiddenScope of ["cwd", "project", "sources", "sessionIds", "after", "before"]) {
+  assert.doesNotMatch(recallParameters, new RegExp(`"${forbiddenScope}"`), `global recall must not expose ${forbiddenScope} scoping`);
+}
 const recallResult = await recall.execute("call", { entities: ["jev", "filter"], question: "Was jev filtering implemented?" }, undefined, () => {});
 const recallText = recallResult.content[0]?.text ?? "";
 assert.ok(recallText.startsWith("# Recall results"), "disabled Jev must not add a visible summary");
@@ -73,10 +76,17 @@ const exportedNotes = readdirSync(obsidianVault);
 assert.equal(exportedNotes.length, 1, "every completed recall tool search must export one complete note when enabled");
 assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Recall search/);
 
+const projectRecall = tools.find((tool) => tool.name === "recall_project_memory");
+assert.ok(projectRecall);
+const projectRecallParameters = JSON.stringify(projectRecall.parameters);
+for (const forbiddenScope of ["cwd", "sources", "sessionIds", "after", "before"]) {
+  assert.doesNotMatch(projectRecallParameters, new RegExp(`"${forbiddenScope}"`), `project recall must not expose ${forbiddenScope} scoping`);
+}
+
 const reviewFiltered = tools.find((tool) => tool.name === "review_jev_filtered");
 assert.ok(reviewFiltered);
-assert.match(reviewFiltered.description, /cannot be scoped by CWD/);
-assert.doesNotMatch(JSON.stringify(reviewFiltered.parameters), /"cwd"/, "global Jev review must not expose CWD scoping");
+assert.match(reviewFiltered.description, /Without project, the review is global/);
+assert.doesNotMatch(JSON.stringify(reviewFiltered.parameters), /"cwd"|"sources"|"sessionIds"|"after"|"before"/, "Jev review must not expose extra scoping");
 
 (await import("../src/db.ts")).getDb().close();
 cleanup();
