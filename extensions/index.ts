@@ -55,12 +55,11 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_memory", label: "Search Cross-Session History",
-    description: "Search past Pi, Claude Code, and Codex transcript history using 2-8 specific literal topic entities. Use for prior-work questions when no project is relevant; when a current or explicitly named project is relevant, also call recall_project_memory with the same bilingual entities and prioritize its evidence. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
-    promptSnippet: "Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. When a current or explicitly named project is relevant, also call recall_project_memory with the identical entities and prioritize its results. Otherwise search only on demand; fetch a smallest useful session range when excerpts need context.",
+    description: "Search all indexed Pi, Claude Code, and Codex transcript history using 2-8 specific literal topic entities. This tool is always global and has no CWD or project scope. When a current or explicitly named project is relevant, also call recall_project_memory with the same bilingual entities and prioritize its evidence. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
+    promptSnippet: "Always search globally across all indexed projects; never scope this tool by the current CWD. Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. When a current or explicitly named project is relevant, also call recall_project_memory with the identical entities and prioritize its results. Fetch a smallest useful session range when excerpts need context.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       sources: Type.Optional(Type.Array(Type.Union([Type.Literal("pi"), Type.Literal("claude"), Type.Literal("codex")]))),
-      cwd: Type.Optional(Type.String({ minLength: 1 })),
       after: Type.Optional(Type.Number()),
       before: Type.Optional(Type.Number()),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal recall candidate." }),
@@ -68,7 +67,7 @@ export default function (pi: ExtensionAPI) {
     async execute(_id, options, _signal, update) {
       const literalResults = recallTurns(options);
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literalResults, (message) => update({ content: [{ type: "text", text: message }] }));
-      const text = `${_jevSummary(reviewed.stats)}\n\n${formatRecallResults(reviewed.results, options)}`;
+      const text = _withOptionalJevSummary(reviewed.stats, formatRecallResults(reviewed.results, options));
       _exportSearchResultsIfEnabled("Recall search", text);
       return { content: [{ type: "text" as const, text }], details: { returnedResults: reviewed.results.length, results: reviewed.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
@@ -90,21 +89,20 @@ export default function (pi: ExtensionAPI) {
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literalResult.results, (message) => update({ content: [{ type: "text", text: message }] }));
       const retainedSessionIds = new Set(reviewed.results.map((turn) => turn.session_id));
       const result = { ...literalResult, results: reviewed.results, sessions: literalResult.sessions.filter((session) => retainedSessionIds.has(session.session_id)) };
-      const text = `${_jevSummary(reviewed.stats)}\n\n${formatProjectRecallResults(result, options)}`;
+      const text = _withOptionalJevSummary(reviewed.stats, formatProjectRecallResults(result, options));
       _exportSearchResultsIfEnabled("Project recall search", text);
       return { content: [{ type: "text" as const, text }], details: { project: options.project, totalSessions: result.sessions.length, returnedResults: result.results.length, sessions: result.sessions, results: result.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
   });
   pi.registerTool({
     name: "review_jev_filtered", label: "Review Jev-Filtered Recall Evidence",
-    description: "Re-run literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after a recall; supply the same entities, question, and optional scopes as the original recall.",
-    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities, complete question, and any project or scope filters.",
+    description: "Re-run literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after a recall; supply the same entities, question, and optional source, time, or project scopes as the original recall. Without project, the review is always global and cannot be scoped by CWD.",
+    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities, complete question, and optional source, time, or project filters. Never scope a global review by the current CWD.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete original user question used for Jev relevance judgment." }),
       project: Type.Optional(Type.String({ minLength: 1, description: "Optional project name; when provided, review only candidates resolved for this project." })),
       sources: Type.Optional(Type.Array(Type.Union([Type.Literal("pi"), Type.Literal("claude"), Type.Literal("codex")]))),
-      cwd: Type.Optional(Type.String({ minLength: 1 })),
       after: Type.Optional(Type.Number()),
       before: Type.Optional(Type.Number()),
     }),
@@ -244,6 +242,10 @@ function _formatJevFilteredOut(filteredOut: import("../src/jev-filter.ts").JevFi
     ? filteredOut.map(({ turn, noul }) => `## Filtered turn · noul relevance ${noul.toFixed(3)}\n**Fetch session ID:** \`${turn.session_id}\`\n**Source turn ID:** \`${turn.turn_id}\`\n**You:** ${turn.user_text}\n${turn.reply_text ? `**Assistant:** ${turn.reply_text}` : ""}`).join("\n\n")
     : "No turns were filtered out by Jev.";
   return `${header}\n\n${turns}`;
+}
+
+function _withOptionalJevSummary(stats: JevFilterStats, recallText: string): string {
+  return stats.status === "disabled" ? recallText : `${_jevSummary(stats)}\n\n${recallText}`;
 }
 
 function _jevSummary(stats: JevFilterStats): string {

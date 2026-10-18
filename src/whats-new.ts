@@ -5,6 +5,17 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.9": `What's New in pi-session-memory v0.7.9
+
+- When jevEnable is false, global and project recall now show only recall results without a redundant disabled Jev status section.
+- Jev diagnostics remain visible when filtering is enabled, unavailable, or fails.`,
+
+  "0.7.8": `What's New in pi-session-memory v0.7.8
+
+- recall_memory is now guaranteed to search globally across every indexed project and no longer exposes a CWD parameter.
+- Project-specific retrieval remains exclusively in recall_project_memory, which should be called alongside global recall when project context is relevant.
+- Global review_jev_filtered audits can no longer be accidentally restricted by the current CWD.`,
+
   "0.7.7": `What's New in pi-session-memory v0.7.7
 
 - Obsidian configuration is fully optional: omit obsidianExportEnabled and obsidianVaultPath to keep export disabled by default.

@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.7**
+**Current version: 0.7.9**
 
 ## Install
 
@@ -13,7 +13,7 @@ Local-first cross-session & cross-agent dialogue search based on sqlite with opt
 ## What it does
 
 - Indexes local Pi, Claude Code, and Codex JSONL transcript turns in local SQLite.
-- Provides `recall_memory` for literal raw-history search, returning a configured number of ranked matches.
+- Provides `recall_memory` for global literal raw-history search across every indexed project. It has no CWD or project parameter, so project scoping cannot accidentally restrict global recall.
 - Provides `recall_project_memory` alongside direct recall whenever a current or named project is relevant: the project matches stored session CWD metadata and the identical bilingual topic entities search only those sessions.
 - Provides `fetch_session` for read-only expansion of the smallest useful transcript range.
 - Synchronizes changed history at Pi session start; the `/pi-session-memory` menu provides explicit full history import.
@@ -27,6 +27,17 @@ Search results are derived from stored source transcripts only and are never aut
 Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.9
+
+- **Quiet disabled Jev:** when `jevEnable` is `false`, global and project recall show only recall results without the redundant Jev status section.
+- **Diagnostics preserved:** Jev status remains visible when filtering is enabled, unavailable, or fails.
+
+## What's new in 0.7.8
+
+- **Guaranteed global recall:** `recall_memory` no longer exposes a CWD parameter and always searches every indexed project.
+- **Dedicated project scope:** only `recall_project_memory` performs project-specific retrieval; call it alongside global recall when project context is relevant.
+- **Consistent Jev review:** global `review_jev_filtered` audits cannot be accidentally restricted by the current CWD either.
 
 ## What's new in 0.7.7
 
@@ -77,7 +88,7 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 | Tool | Use when |
 | --- | --- |
-| `recall_memory` | Search prior work using 2–8 specific literal topic entities, including Chinese and English equivalents. When a current or named project is relevant, also call `recall_project_memory`. |
+| `recall_memory` | Always search all indexed projects using 2–8 specific literal topic entities, including Chinese and English equivalents. It has no CWD or project scope. When a current or named project is relevant, also call `recall_project_memory`. |
 | `recall_project_memory` | Call alongside `recall_memory` whenever a current or explicitly named project is relevant. Reuse identical Chinese-and-English topic entities; put the project name only in `project`, never in `entities`, and prioritize its evidence. Its normalized words match the stored CWD directory name, so `pi app` can resolve `pi-native-app`. |
 | `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
 | `get_memory_stats` | The user asks how much local history is indexed. |
@@ -89,8 +100,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 ```text
 session_start -> syncChangedHistory() -> SQLite raw transcript index
-no project context -> recall_memory(bilingual topic entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
-current or named project -> recall_memory(bilingual topic entities) + recall_project_memory(project metadata + identical bilingual topic entities) -> prioritize project-scoped turns or session candidates -> fetch_session (optional, read-only)
+no project context -> recall_memory(global, bilingual topic entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
+current or named project -> recall_memory(global, bilingual topic entities) + recall_project_memory(project metadata + identical bilingual topic entities) -> prioritize project-scoped turns or session candidates -> fetch_session (optional, read-only)
 enabled export -> every completed history search -> one complete result Markdown note in the configured existing Obsidian vault
 project migration command/tool -> native Pi session JSONL -> /resume
 ```

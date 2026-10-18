@@ -22,12 +22,12 @@ writeFileSync(join(historyHome, ".pi", "agent", "pi-session-memory", "config.jso
 const extension = (await import("../extensions/index.ts")).default;
 const events: Array<{ event: string; handler: (...args: any[]) => unknown }> = [];
 const commands: Array<{ name: string; options: { description: string; handler: (args: string, ctx: unknown) => Promise<void> } }> = [];
-const tools: Array<{ name: string; description: string; execute: (...args: any[]) => Promise<{ content: Array<{ type: string; text: string }> }> }> = [];
+const tools: Array<{ name: string; description: string; parameters: unknown; execute: (...args: any[]) => Promise<{ content: Array<{ type: string; text: string }> }> }> = [];
 
 extension({
   on(event: string, handler: (...args: any[]) => unknown) { events.push({ event, handler }); },
   registerCommand(name: string, options: { description: string; handler: (args: string, ctx: unknown) => Promise<void> }) { commands.push({ name, options }); },
-  registerTool(tool: { name: string; description: string; execute: (...args: any[]) => Promise<{ content: Array<{ type: string; text: string }> }> }) { tools.push(tool); },
+  registerTool(tool: { name: string; description: string; parameters: unknown; execute: (...args: any[]) => Promise<{ content: Array<{ type: string; text: string }> }> }) { tools.push(tool); },
 } as any);
 
 assert.deepEqual(events.map(({ event }) => event), ["session_start", "agent_settled", "session_shutdown"]);
@@ -49,7 +49,7 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.7/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.9/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);
@@ -63,21 +63,20 @@ assert.match(result.content[0]?.text ?? "", /0 turns across 0 sessions/);
 
 const recall = tools.find((tool) => tool.name === "recall_memory");
 assert.ok(recall);
+assert.match(recall.description, /always global/);
+assert.doesNotMatch(JSON.stringify(recall.parameters), /"cwd"/, "global recall must not expose CWD scoping");
 const recallResult = await recall.execute("call", { entities: ["jev", "filter"], question: "Was jev filtering implemented?" }, undefined, () => {});
 const recallText = recallResult.content[0]?.text ?? "";
-assert.ok(recallText.startsWith("# Jev result\n**Status:** disabled"), "Jev result must be the first visible section");
-assert.ok(recallText.indexOf("# Jev result") < recallText.indexOf("# Recall results"), "Jev result must precede the long recall body");
-assert.match(recallText, /\*\*Model:\*\* nimble/);
-assert.match(recallText, /\*\*Context window:\*\* unavailable tokens/);
-assert.match(recallText, /\*\*Segmented turns:\*\* 0/);
-assert.match(recallText, /\*\*Reason:\*\* jevEnable is false/);
+assert.ok(recallText.startsWith("# Recall results"), "disabled Jev must not add a visible summary");
+assert.doesNotMatch(recallText, /# Jev result|jevEnable is false|\*\*Model:\*\* nimble/);
 const exportedNotes = readdirSync(obsidianVault);
 assert.equal(exportedNotes.length, 1, "every completed recall tool search must export one complete note when enabled");
 assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Recall search/);
 
 const reviewFiltered = tools.find((tool) => tool.name === "review_jev_filtered");
 assert.ok(reviewFiltered);
-assert.match(reviewFiltered.description, /false negatives/);
+assert.match(reviewFiltered.description, /cannot be scoped by CWD/);
+assert.doesNotMatch(JSON.stringify(reviewFiltered.parameters), /"cwd"/, "global Jev review must not expose CWD scoping");
 
 (await import("../src/db.ts")).getDb().close();
 cleanup();
