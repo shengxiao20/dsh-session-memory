@@ -5,6 +5,18 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.15": `What's New in pi-session-memory v0.7.15
+
+- recall_project_memory no longer accepts project; it uses the same entities as global recall to match stored session CWD directory names.
+- Any entity matching a stored project/session directory discovers those sessions, then the same entities search only their turns.
+- Every prior-history question uses both global turn recall and entity-driven project-session recall without current runtime context.`,
+
+  "0.7.14": `What's New in pi-session-memory v0.7.14
+
+- recall_memory always searches every indexed transcript turn globally, without current Pi session, project, or CWD context.
+- recall_project_memory runs only for a project-name keyword explicitly supplied by the user: it matches stored session CWD directory names first, then searches turns in matched sessions.
+- Project lookup never derives a value from current runtime context.`,
+
   "0.7.13": `What's New in pi-session-memory v0.7.13
 
 - recall_memory searches all transcript content globally, while recall_project_memory searches sessions belonging to the named project; these responsibilities are complementary.

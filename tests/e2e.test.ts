@@ -49,7 +49,7 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.13/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.15/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);
@@ -63,7 +63,7 @@ assert.match(result.content[0]?.text ?? "", /0 turns across 0 sessions/);
 
 const recall = tools.find((tool) => tool.name === "recall_memory");
 assert.ok(recall);
-assert.match(recall.description, /MUST ALSO call recall_project_memory/);
+assert.match(recall.description, /Always call recall_project_memory too with identical entities and question/);
 const recallParameters = JSON.stringify(recall.parameters);
 for (const forbiddenScope of ["cwd", "project", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(recallParameters, new RegExp(`"${forbiddenScope}"`), `global recall must not expose ${forbiddenScope} scoping`);
@@ -78,16 +78,16 @@ assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Re
 
 const projectRecall = tools.find((tool) => tool.name === "recall_project_memory");
 assert.ok(projectRecall);
-assert.match(projectRecall.description, /MUST call this tool together with recall_memory/);
-assert.match(projectRecall.description, /no current-CWD fallback is used/);
+assert.match(projectRecall.description, /Always call this tool together with recall_memory for every prior-conversation/);
+assert.match(projectRecall.description, /No project argument exists/);
 const projectRecallParameters = JSON.stringify(projectRecall.parameters);
-for (const forbiddenScope of ["cwd", "sources", "sessionIds", "after", "before"]) {
+for (const forbiddenScope of ["cwd", "project", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(projectRecallParameters, new RegExp(`"${forbiddenScope}"`), `project recall must not expose ${forbiddenScope} scoping`);
 }
 
 const reviewFiltered = tools.find((tool) => tool.name === "review_jev_filtered");
 assert.ok(reviewFiltered);
-assert.match(reviewFiltered.description, /Without project, the review is global/);
+assert.match(reviewFiltered.description, /global and entity-discovered project-session literal recall/);
 assert.doesNotMatch(JSON.stringify(reviewFiltered.parameters), /"cwd"|"sources"|"sessionIds"|"after"|"before"/, "Jev review must not expose extra scoping");
 
 (await import("../src/db.ts")).getDb().close();

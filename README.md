@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.13**
+**Current version: 0.7.15**
 
 ## Install
 
@@ -27,6 +27,18 @@ Search results are derived from stored source transcripts only and are never aut
 Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.15
+
+- **Entity-driven project discovery:** `recall_project_memory` no longer accepts `project`; it uses the same entities as global recall to match stored session CWD directory names.
+- **Two-stage project search:** any entity matching a stored project/session directory discovers those sessions, then the same entities search only their turns.
+- **Always paired:** every prior-history question calls both global turn recall and entity-driven project-session recall, without current runtime context.
+
+## What's new in 0.7.14
+
+- **Exact recall semantics:** `recall_memory` always searches every indexed transcript turn globally, with no current Pi session, project, or CWD context.
+- **Stored-session-name discovery:** `recall_project_memory` runs only for a project-name keyword explicitly supplied by the user; it first matches stored session CWD directory names, then searches turns only in matched sessions.
+- **No runtime inference:** project lookup never derives a project from the current Pi session, current directory, or runtime context.
 
 ## What's new in 0.7.13
 
@@ -104,8 +116,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 | Tool | Use when |
 | --- | --- |
-| `recall_memory` | Always call for prior-work questions and search every indexed SQLite turn using 2–8 bilingual literal entities. If the current project is involved or any project, repository, app, agent, service, or codebase is named, also call `recall_project_memory` with identical entities and question. |
-| `recall_project_memory` | Must be called together with `recall_memory` for prior-work questions involving the current project or any named project, repository, app, agent, service, or codebase. It searches that project's own sessions; reuse identical entities and question. Project resolution never falls back to the current CWD. |
+| `recall_memory` | For every prior-conversation question, search every indexed SQLite turn globally and also call `recall_project_memory` with identical entities and question. No current Pi session, project, or CWD context is used. |
+| `recall_project_memory` | For every prior-conversation question, use the same entities to match stored session CWD final-directory names; any matching entity discovers sessions, then the same entities search only those sessions' turns. It has no `project` parameter or runtime context. |
 | `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
 | `get_memory_stats` | The user asks how much local history is indexed. |
 | `backfill_memory` | The user explicitly asks to import, backfill, or rescan history. |

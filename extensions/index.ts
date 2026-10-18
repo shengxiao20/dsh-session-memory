@@ -55,8 +55,8 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_memory", label: "Search Cross-Session History",
-    description: "Search every indexed Pi, Claude Code, and Codex transcript turn globally using 2-8 specific literal topic entities. Always call this tool for prior-work questions. If the question involves the current project or names any project, repository, application, agent, service, or codebase, you MUST ALSO call recall_project_memory with the identical entities and question. These tools are complementary, never alternatives: recall_memory answers what was discussed anywhere in all indexed history, while recall_project_memory answers what was done inside the named project's own sessions. A project name used as a search topic still counts as an explicitly named project. This tool has no CWD, project, source, session, or time scope; results are never automatic prompt context.",
-    promptSnippet: "Always call for prior-work questions and search every indexed transcript turn globally. When the current project is involved or any project, repository, application, agent, service, or codebase is named, MUST ALSO call recall_project_memory with identical entities and question. The tools answer different questions and neither replaces the other; a project name used as a topic still requires both. Use 2-8 bilingual literal topic entities and fetch only the smallest useful session range when needed.",
+    description: "Search every indexed Pi, Claude Code, and Codex transcript turn globally using 2-8 literal topic entities. Use for any question about prior conversations or prior work. Always call recall_project_memory too with identical entities and question: recall_memory searches all turns, while recall_project_memory uses the entities to discover matching stored project/session directory names and then searches those sessions' turns. This tool has no project, current-session, current-CWD, source, session, or time context.",
+    promptSnippet: "For every prior-conversation question, call both recall_memory and recall_project_memory with identical entities and question. This tool searches every indexed transcript turn globally. Never scope or infer from the current Pi session, project, or CWD.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal recall candidate." }),
@@ -71,11 +71,10 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_project_memory", label: "Search Named Project History",
-    description: "Search every transcript turn belonging to sessions resolved for one named project by matching every normalized project word in the final directory name of stored session CWDs. You MUST call this tool together with recall_memory whenever a prior-work question involves the current project or names any project, repository, application, agent, service, or codebase. These tools are complementary, never alternatives: recall_memory provides global cross-project evidence, while recall_project_memory provides evidence from the named project's own sessions. Never omit this tool because global recall found matches; a project name used as a search topic still requires both tools. Reuse identical bilingual entities and the identical complete question. project alone resolves directory names; no current-CWD fallback is used.",
-    promptSnippet: "MUST call together with recall_memory for prior-work questions involving the current project or any named project, repository, application, agent, service, or codebase. Global recall and project-session recall solve different problems and neither replaces the other, even when the project name is also the topic or global recall already found matches. Reuse identical entities and question; resolve only from project, with no current-CWD fallback.",
+    description: "Use the supplied entities to search stored project/session directory names, then search the same entities in transcript turns belonging only to matched sessions. Always call this tool together with recall_memory for every prior-conversation or prior-work question, using identical entities and question. A stored session matches when any entity's normalized token sequence appears in its final CWD directory name. No project argument exists, and the current Pi session, current project, current CWD, and runtime context are never used.",
+    promptSnippet: "For every prior-conversation question, call both recall_project_memory and recall_memory with identical entities and question. Use entities to discover matching stored session CWD final-directory names, then search the same entities only in those sessions' turns. Never use current runtime context.",
     parameters: Type.Object({
-      project: Type.String({ minLength: 1, description: "Project name. Used only to match its normalized words against the final directory name of stored session CWDs (for example, pi app matches pi-native-app); do not repeat it in entities." }),
-      entities: Type.Array(Type.String({ minLength: 1, description: "The identical Chinese-and-English literal topic entities supplied to recall_memory. Search every turn in the resolved project sessions." }), { minItems: 2, maxItems: 8 }),
+      entities: Type.Array(Type.String({ minLength: 1, description: "The identical literal topic entities supplied to recall_memory. Each entity is also tested against stored session CWD final-directory names; any matching entity discovers that session." }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal project recall candidate." }),
     }),
     async execute(_id, options, _signal, update) {
@@ -85,20 +84,21 @@ export default function (pi: ExtensionAPI) {
       const result = { ...literalResult, results: reviewed.results, sessions: literalResult.sessions.filter((session) => retainedSessionIds.has(session.session_id)) };
       const text = _withOptionalJevSummary(reviewed.stats, formatProjectRecallResults(result, options));
       _exportSearchResultsIfEnabled("Project recall search", text);
-      return { content: [{ type: "text" as const, text }], details: { project: options.project, totalSessions: result.sessions.length, returnedResults: result.results.length, sessions: result.sessions, results: result.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
+      return { content: [{ type: "text" as const, text }], details: { totalSessions: result.sessions.length, returnedResults: result.results.length, sessions: result.sessions, results: result.results, jev: reviewed.stats, jevFilteredOut: reviewed.filteredOut } };
     },
   });
   pi.registerTool({
     name: "review_jev_filtered", label: "Review Jev-Filtered Recall Evidence",
-    description: "Re-run literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after a recall; supply the same entities and question, plus project only when reviewing project recall. Without project, the review is global.",
-    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities and complete question. Supply project only when reviewing project recall; no other scope is available.",
+    description: "Re-run global and entity-discovered project-session literal recall and display only turns Jev filtered out, with each turn's maximum Jev noul relevance. Use when auditing possible Jev false negatives after recall; supply the same entities and question.",
+    promptSnippet: "Use only to inspect possible Jev false negatives after recall. Reuse the original entities and complete question; no runtime or project parameter is available.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete original user question used for Jev relevance judgment." }),
-      project: Type.Optional(Type.String({ minLength: 1, description: "Optional project name; when provided, review every matching candidate from the resolved project sessions." })),
     }),
     async execute(_id, options, _signal, update) {
-      const literal = options.project === undefined ? recallTurns(options.entities) : recallProjectMemory({ project: options.project, entities: options.entities }).results;
+      const globalLiteral = recallTurns(options.entities);
+      const projectLiteral = recallProjectMemory({ entities: options.entities }).results;
+      const literal = [...new Map([...globalLiteral, ...projectLiteral].map((turn) => [turn.turn_id, turn])).values()];
       const reviewed = await _reviewWithJev(jevRuntime, options.question, literal, (message) => update({ content: [{ type: "text", text: message }] }));
       const text = `${_jevSummary(reviewed.stats)}\n\n${_formatJevFilteredOut(reviewed.filteredOut)}`;
       _exportSearchResultsIfEnabled("Jev filtered recall search", text);
@@ -163,11 +163,9 @@ async function _searchHistoryFromMenu(ctx: ExtensionCommandContext): Promise<voi
 }
 
 async function _searchProjectHistoryFromMenu(ctx: ExtensionCommandContext): Promise<void> {
-  const project = await ctx.ui.input("Search project history", "Project name");
-  if (!project) return;
-  const entities = _bilingualTopics(await ctx.ui.input("Search project history", "Chinese topic | English topic"));
+  const entities = _bilingualTopics(await ctx.ui.input("Search project session names and turns", "Chinese topic | English topic"));
   if (!entities) return;
-  const options = { project, entities };
+  const options = { entities };
   const projectResults = recallProjectMemory(options);
   const text = formatProjectRecallResults(projectResults, options);
   ctx.ui.notify(text, "info");
