@@ -7,7 +7,7 @@ Run /pi-session-memory to open one selectable menu (the only user-facing command
 - Help and release notes
 - Local storage status
 - Global history search with equivalent Chinese and English topics
-- Project-scoped history search plus global history
+- Named-project directory discovery followed by content search within matching sessions
 - Historical-session import
 - Current-project Claude Code and Codex session migration for /resume
 
@@ -20,7 +20,8 @@ Recall past discussions
 
 Local storage
 - For search, enter exactly <Chinese topic> | <English topic> in the menu prompt.
-- Project search additionally asks for the project name. Normalized project words match session CWD metadata (for example, pi app can match pi-native-app) and never search transcript text.
+- Project search first matches the user-provided project-name keyword against stored session CWD directory names. It does not infer a project from the current CWD and does not run global recall.
+- After matching project directories, its Chinese and English topics search only those project sessions; these topics are independent from global-search topics.
 - Put persistent rules, preferences, and project instructions in AGENTS.md.
 - If Obsidian export is enabled in configuration, every completed history search writes its complete result to one new Markdown note in the configured vault. No selection is required.
 

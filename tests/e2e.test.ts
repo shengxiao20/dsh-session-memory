@@ -49,7 +49,7 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.11/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.12/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);
@@ -63,7 +63,7 @@ assert.match(result.content[0]?.text ?? "", /0 turns across 0 sessions/);
 
 const recall = tools.find((tool) => tool.name === "recall_memory");
 assert.ok(recall);
-assert.match(recall.description, /always global/);
+assert.match(recall.description, /global and searches transcript content only/);
 const recallParameters = JSON.stringify(recall.parameters);
 for (const forbiddenScope of ["cwd", "project", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(recallParameters, new RegExp(`"${forbiddenScope}"`), `global recall must not expose ${forbiddenScope} scoping`);
@@ -78,6 +78,8 @@ assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Re
 
 const projectRecall = tools.find((tool) => tool.name === "recall_project_memory");
 assert.ok(projectRecall);
+assert.match(projectRecall.description, /when the user supplies a project-name keyword/);
+assert.match(projectRecall.description, /do not infer the project from the current CWD/);
 const projectRecallParameters = JSON.stringify(projectRecall.parameters);
 for (const forbiddenScope of ["cwd", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(projectRecallParameters, new RegExp(`"${forbiddenScope}"`), `project recall must not expose ${forbiddenScope} scoping`);

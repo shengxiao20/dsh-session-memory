@@ -5,6 +5,12 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.12": `What's New in pi-session-memory v0.7.12
+
+- recall_memory now has one responsibility: global literal search of transcript content.
+- recall_project_memory now has one distinct responsibility: discover only user-named projects by stored session CWD directory name, even when the project name is absent from transcript text.
+- Named-project discovery is not inferred from the current CWD, is not automatically paired with global recall, and uses independent content entities.`,
+
   "0.7.11": `What's New in pi-session-memory v0.7.11
 
 - recall_project_memory no longer accepts source or time filters and always searches every turn in all sessions resolved from project.

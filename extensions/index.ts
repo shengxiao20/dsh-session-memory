@@ -55,8 +55,8 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_memory", label: "Search Cross-Session History",
-    description: "Search every indexed Pi, Claude Code, and Codex transcript turn using 2-8 specific literal topic entities. This tool is always global: it has no CWD, project, source, session, or time scope. When a current or explicitly named project is relevant, also call recall_project_memory with the same bilingual entities and prioritize its evidence. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
-    promptSnippet: "Always search every indexed transcript turn; this tool cannot be scoped. Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. When a current or explicitly named project is relevant, also call recall_project_memory with the identical entities and prioritize its results. Fetch a smallest useful session range when excerpts need context.",
+    description: "Search every indexed Pi, Claude Code, and Codex transcript turn using 2-8 specific literal topic entities. This tool is global and searches transcript content only: it has no CWD, project, source, session, or time scope. Use it for topics mentioned in prior conversations. For project-directory discovery, use recall_project_memory separately. Returns the configured number of ranked raw transcript matches; results are never automatic prompt context.",
+    promptSnippet: "Always search every indexed transcript turn by literal transcript-content entities; this tool cannot be scoped. Use 2-8 high-signal literal topic entities, including Chinese and English equivalents. Use recall_project_memory separately only when the user supplies a project-name keyword to look up in stored session CWD directory names. Fetch a smallest useful session range when excerpts need context.",
     parameters: Type.Object({
       entities: Type.Array(Type.String({ minLength: 1 }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal recall candidate." }),
@@ -71,11 +71,11 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "recall_project_memory", label: "Search Named Project History",
-    description: "Search a named project's prior history by matching every normalized project word in the final directory name of stored session CWDs, then applying the provided topic entities only within those sessions. For example, pi app matches pi-native-app. Use alongside recall_memory whenever a current or explicitly named project is relevant; reuse the same Chinese-and-English topic entities and prioritize this project's evidence. Never put the project name in entities. If no project-scoped topic turn matches, returns recent matching project sessions for targeted fetch_session expansion.",
-    promptSnippet: "Use alongside recall_memory when a current or explicitly named project is relevant, with identical Chinese-and-English topic entities. Put the user-supplied project name only in project, never in entities; its normalized words match the final CWD directory name and it may be absent from that project's own transcript.",
+    description: "Discover prior work for a named project by matching every normalized project word in the final directory name of stored session CWDs, then searching transcript content only within those sessions. Use this when the user supplies a project-name keyword, including when that name may never appear in a transcript; do not infer the project from the current CWD or call it merely because a project context exists. For example, pi app matches pi-native-app. Put the project name only in project, never in entities. If no project-scoped topic turn matches, returns recent matching project sessions for targeted fetch_session expansion.",
+    promptSnippet: "Use only when the user names a project to discover in stored session CWD directory names, including when the project name may be absent from transcript text. project is the directory-name keyword; entities independently search content after project sessions are resolved and need not match recall_memory entities. Do not infer project from the current CWD. Fetch candidate sessions when no topic matches.",
     parameters: Type.Object({
       project: Type.String({ minLength: 1, description: "Project name. Used only to match its normalized words against the final directory name of stored session CWDs (for example, pi app matches pi-native-app); do not repeat it in entities." }),
-      entities: Type.Array(Type.String({ minLength: 1, description: "The same Chinese-and-English literal topic entities used for recall_memory. Search every turn in the resolved project sessions; never include the project name here." }), { minItems: 2, maxItems: 8 }),
+      entities: Type.Array(Type.String({ minLength: 1, description: "Literal transcript-content entities to search after directory-name project discovery. They are independent from recall_memory entities and must not include the project name." }), { minItems: 2, maxItems: 8 }),
       question: Type.String({ minLength: 1, description: "The complete user question used by optional jev filtering to judge each literal project recall candidate." }),
     }),
     async execute(_id, options, _signal, update) {
@@ -135,7 +135,7 @@ const SESSION_MEMORY_ACTIONS = {
   whatsNew: `What's new — pi-session-memory v${packageJson.version}`,
   status: "Storage status — show indexed session and turn totals",
   search: "Search history — search global history with Chinese | English topics",
-  projectSearch: "Search project history — search project plus global history",
+  projectSearch: "Search project history — discover a named project by session directory name",
   backfill: "Import historical sessions — rescan Pi, Claude Code, and Codex history",
   migrate: "Migrate project sessions — make Claude Code and Codex sessions available in /resume",
 } as const;
@@ -169,8 +169,7 @@ async function _searchProjectHistoryFromMenu(ctx: ExtensionCommandContext): Prom
   if (!entities) return;
   const options = { project, entities };
   const projectResults = recallProjectMemory(options);
-  const globalResults = recallTurns({ entities });
-  const text = `${formatProjectRecallResults(projectResults, options)}\n\n---\n\n${formatRecallResults(globalResults, { entities })}`;
+  const text = formatProjectRecallResults(projectResults, options);
   ctx.ui.notify(text, "info");
   _exportSearchResultsIfEnabled("Menu project recall search", text);
 }

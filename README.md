@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.11**
+**Current version: 0.7.12**
 
 ## Install
 
@@ -14,7 +14,7 @@ Local-first cross-session & cross-agent dialogue search based on sqlite with opt
 
 - Indexes local Pi, Claude Code, and Codex JSONL transcript turns in local SQLite.
 - Provides `recall_memory` for unconditional global literal search across every indexed turn. Its public interface accepts only topic entities and the complete question, so CWD, project, source, session, and time filters cannot restrict it.
-- Provides `recall_project_memory` alongside direct recall whenever a current or named project is relevant: the project matches stored session CWD metadata and the identical bilingual topic entities search only those sessions.
+- Provides `recall_project_memory` for named-project discovery: it first matches user-supplied project-name keywords against stored session CWD directory names, then searches only those sessions. It is independent of global recall and is appropriate even when the project name never appears in transcript text.
 - Provides `fetch_session` for read-only expansion of the smallest useful transcript range.
 - Synchronizes changed history at Pi session start; the `/pi-session-memory` menu provides explicit full history import.
 - Migrates current-project Claude Code or Codex sessions into separate native Pi sessions.
@@ -27,6 +27,12 @@ Search results are derived from stored source transcripts only and are never aut
 Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.12
+
+- **Distinct recall responsibilities:** `recall_memory` searches global transcript content, while `recall_project_memory` discovers explicitly named projects from stored session CWD directory names.
+- **No implicit current-project lookup:** project discovery is no longer paired automatically with global recall or inferred from the current CWD. Its content entities are independent from global-search entities.
+- **Focused menu search:** project search now reports only the named project's results instead of appending an unrelated global search.
 
 ## What's new in 0.7.11
 
@@ -46,7 +52,7 @@ Obsidian export is intentionally a menu-only capability: it is not registered as
 ## What's new in 0.7.8
 
 - **Guaranteed global recall:** `recall_memory` no longer exposes a CWD parameter and always searches every indexed project.
-- **Dedicated project scope:** only `recall_project_memory` performs project-specific retrieval; call it alongside global recall when project context is relevant.
+- **Dedicated project scope:** only `recall_project_memory` performs named-project discovery by matching stored CWD directory names; use it only when the user supplies a project-name keyword. It is independent of global transcript search.
 - **Consistent Jev review:** global `review_jev_filtered` audits cannot be accidentally restricted by the current CWD either.
 
 ## What's new in 0.7.7
@@ -98,8 +104,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 | Tool | Use when |
 | --- | --- |
-| `recall_memory` | Always search every indexed SQLite turn using 2–8 specific literal topic entities, including Chinese and English equivalents. It cannot be restricted by CWD, project, source, session, or time. When project context is relevant, also call `recall_project_memory`. |
-| `recall_project_memory` | Call alongside `recall_memory` whenever a current or explicitly named project is relevant. It accepts only `project`, identical bilingual `entities`, and `question`; it searches every turn in all resolved project sessions. Put the project name only in `project`, never in `entities`. |
+| `recall_memory` | Search all indexed transcript content using 2–8 specific literal topic entities, including Chinese and English equivalents. It cannot be restricted by CWD, project, source, session, or time. Use it for topics mentioned in past conversations. |
+| `recall_project_memory` | Use only when the user supplies a project-name keyword to find in stored session CWD directory names, including when that name may be absent from transcript text. `project` is the directory-name lookup; its 2–8 content `entities` are independent from `recall_memory` and must not include the project name. Do not infer it from the current CWD. |
 | `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
 | `get_memory_stats` | The user asks how much local history is indexed. |
 | `backfill_memory` | The user explicitly asks to import, backfill, or rescan history. |
@@ -110,8 +116,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 ```text
 session_start -> syncChangedHistory() -> SQLite raw transcript index
-no project context -> recall_memory(global, bilingual topic entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
-current or named project -> recall_memory(global, bilingual topic entities) + recall_project_memory(project metadata + identical bilingual topic entities) -> prioritize project-scoped turns or session candidates -> fetch_session (optional, read-only)
+no project-name lookup -> recall_memory(global transcript-content entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
+named project lookup -> recall_project_memory(project directory-name keyword + independent content entities) -> matching project turns or project-session candidates -> fetch_session (optional, read-only)
 enabled export -> every completed history search -> one complete result Markdown note in the configured existing Obsidian vault
 project migration command/tool -> native Pi session JSONL -> /resume
 ```
