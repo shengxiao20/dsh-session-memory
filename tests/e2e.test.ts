@@ -63,7 +63,7 @@ assert.match(result.content[0]?.text ?? "", /0 turns across 0 sessions/);
 
 const recall = tools.find((tool) => tool.name === "recall_memory");
 assert.ok(recall);
-assert.match(recall.description, /global and searches transcript content only/);
+assert.match(recall.description, /MUST ALSO call recall_project_memory/);
 const recallParameters = JSON.stringify(recall.parameters);
 for (const forbiddenScope of ["cwd", "project", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(recallParameters, new RegExp(`"${forbiddenScope}"`), `global recall must not expose ${forbiddenScope} scoping`);
@@ -78,8 +78,8 @@ assert.match(readFileSync(join(obsidianVault, exportedNotes[0]!), "utf8"), /# Re
 
 const projectRecall = tools.find((tool) => tool.name === "recall_project_memory");
 assert.ok(projectRecall);
-assert.match(projectRecall.description, /when the user supplies a project-name keyword/);
-assert.match(projectRecall.description, /do not infer the project from the current CWD/);
+assert.match(projectRecall.description, /MUST call this tool together with recall_memory/);
+assert.match(projectRecall.description, /no current-CWD fallback is used/);
 const projectRecallParameters = JSON.stringify(projectRecall.parameters);
 for (const forbiddenScope of ["cwd", "sources", "sessionIds", "after", "before"]) {
   assert.doesNotMatch(projectRecallParameters, new RegExp(`"${forbiddenScope}"`), `project recall must not expose ${forbiddenScope} scoping`);

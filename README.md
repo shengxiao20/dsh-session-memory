@@ -30,9 +30,9 @@ Obsidian export is intentionally a menu-only capability: it is not registered as
 
 ## What's new in 0.7.12
 
-- **Distinct recall responsibilities:** `recall_memory` searches global transcript content, while `recall_project_memory` discovers explicitly named projects from stored session CWD directory names.
-- **No implicit current-project lookup:** project discovery is no longer paired automatically with global recall or inferred from the current CWD. Its content entities are independent from global-search entities.
-- **Focused menu search:** project search now reports only the named project's results instead of appending an unrelated global search.
+- **Complementary recall responsibilities:** `recall_memory` searches all transcript content globally, while `recall_project_memory` searches sessions belonging to the named project.
+- **Mandatory paired invocation:** prior-work questions involving the current project or any named project, repository, application, agent, service, or codebase must call both tools with identical entities and question.
+- **No current-directory fallback:** project resolution uses only the explicit `project` argument and stored session CWD directory names.
 
 ## What's new in 0.7.11
 
@@ -104,8 +104,8 @@ Run `/pi-session-memory` in Pi to open the menu and access every user-facing cap
 
 | Tool | Use when |
 | --- | --- |
-| `recall_memory` | Search all indexed transcript content using 2–8 specific literal topic entities, including Chinese and English equivalents. It cannot be restricted by CWD, project, source, session, or time. Use it for topics mentioned in past conversations. |
-| `recall_project_memory` | Use only when the user supplies a project-name keyword to find in stored session CWD directory names, including when that name may be absent from transcript text. `project` is the directory-name lookup; its 2–8 content `entities` are independent from `recall_memory` and must not include the project name. Do not infer it from the current CWD. |
+| `recall_memory` | Always call for prior-work questions and search every indexed SQLite turn using 2–8 bilingual literal entities. If the current project is involved or any project, repository, app, agent, service, or codebase is named, also call `recall_project_memory` with identical entities and question. |
+| `recall_project_memory` | Must be called together with `recall_memory` for prior-work questions involving the current project or any named project, repository, app, agent, service, or codebase. It searches that project's own sessions; reuse identical entities and question. Project resolution never falls back to the current CWD. |
 | `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
 | `get_memory_stats` | The user asks how much local history is indexed. |
 | `backfill_memory` | The user explicitly asks to import, backfill, or rescan history. |
