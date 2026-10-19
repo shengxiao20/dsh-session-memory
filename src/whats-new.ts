@@ -5,6 +5,10 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.16": `What's New in pi-session-memory v0.7.16
+
+- Adds the \`pi-extension\` npm keyword so the Pi package gallery's extension filter indexes this package correctly.`,
+
   "0.7.15": `What's New in pi-session-memory v0.7.15
 
 - recall_project_memory no longer accepts project; it uses the same entities as global recall to match stored session CWD directory names.

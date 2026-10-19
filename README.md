@@ -1,6 +1,6 @@
 # pi-session-memory
 
-**Current version: 0.7.15**
+**Current version: 0.7.16**
 
 ## Install
 
@@ -27,6 +27,10 @@ Search results are derived from stored source transcripts only and are never aut
 Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
 
 Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
+
+## What's new in 0.7.16
+
+- **Gallery extension discovery:** adds the `pi-extension` npm keyword, so this package is included when visitors filter the Pi package gallery by **extension**.
 
 ## What's new in 0.7.15
 

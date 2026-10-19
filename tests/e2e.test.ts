@@ -49,7 +49,8 @@ assert.ok(menu);
 await menu.options.handler("", ctx);
 assert.match(notices[0]?.message ?? "", /pi-session-memory/);
 await menu.options.handler("", ctx);
-assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.15/);
+assert.match(notices[1]?.message ?? "", /What's New in pi-session-memory v0\.7\.16/);
+assert.match(notices[1]?.message ?? "", /pi-extension/);
 
 const migration = tools.find((tool) => tool.name === "migrate_project_sessions");
 assert.ok(migration);

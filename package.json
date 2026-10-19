@@ -1,9 +1,10 @@
 {
   "name": "pi-session-memory",
-  "version": "0.7.15",
+  "version": "0.7.16",
   "description": "Local-first cross-session & cross-agent dialogue search based on sqlite with optional local Jev semantic relevance filtering, or direct session migration from Claude Code and Codex to Pi, and optional Obsidian export, compatible in Chinese and English",
   "keywords": [
-    "pi-package"
+    "pi-package",
+    "pi-extension"
   ],
   "repository": {
     "type": "git",
