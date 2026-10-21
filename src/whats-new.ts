@@ -5,6 +5,10 @@ import { join } from "node:path";
 const STATE_PATH = join(homedir(), ".pi", "agent", "pi-session-memory", "whats-new.json");
 
 const RELEASE_NOTES: Record<string, string> = {
+  "0.7.18": `What's New in pi-session-memory v0.7.18
+
+- Continues the bilingual Chinese and English README presentation.`,
+
   "0.7.17": `What's New in pi-session-memory v0.7.17
 
 - Adds bilingual Chinese and English npm metadata and README documentation.`,
