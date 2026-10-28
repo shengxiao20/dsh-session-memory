@@ -1,0 +1,11 @@
+# Reuse the shipped backend; the inspected profile uses this in-memory path.
+# No second backend or transcript database is mounted.
+- id: session-query-sqlite
+  name: '@deepseek-ai/dsh-session-query-sqlite'
+  config:
+    path: ':memory:'
+    openAt: first-search
+- insert:
+    - id: dsh-session-memory
+      name: '@shengxiao04/dsh-session-memory'
+      config: {}

@@ -1,194 +1,115 @@
-# pi-session-memory
+# dsh-session-memory
 
-[中文](README_zh.md)
+[中文](README_zh.md) · Version **0.1.3** · MIT
 
-**Current version: 0.7.18**
+A DSH-only fork of [pi-session-memory](https://github.com/shengxiao20/pi-session-memory), rebuilt as a Cordis Host bundle. Search prior DSH conversations, then read the original text around an exact event. No Pi extension API or external-agent bridge remains in the runtime.
+
+## Scope
+
+- **Only DSH main sessions** in the active DSH service corpus, including persisted and live sessions and ordinary main-session forks.
+- Excludes headers marked `origin: subagent` or positive `delegationDepth`; no agent/provider discovery, messaging, or lineage traversal.
+- Uses the existing `ctx.sessionQuery` backend and its local derived search index. No second database, JSONL directory scanning, hardcoded home paths, or writes to session logs.
+- No foreign-runtime import, session migration/resume, remote relevance model, Ollama management, or Obsidian/export subsystem.
+- Search is global within the active corpus unless an explicit exact `cwd` or `session_id` is supplied. This is **not** a current-workspace-only access boundary. Install only in a trusted local profile where searching that corpus is intended.
 
 ## Install
 
-```bash
-pi install npm:pi-session-memory
+Install `@shengxiao04/dsh-session-memory@0.1.3` through DSH Plugin Manager's **Install bundle** action once that version is published, or ask the DSH agent to call:
+
+```json
+{"action":"install_bundle","target":"@shengxiao04/dsh-session-memory@0.1.3","enabled":true}
 ```
 
-Local-first cross-session & cross-agent dialogue search based on sqlite with optional local Jev semantic relevance filtering, or direct session migration from Claude Code and Codex to Pi, and optional Obsidian export, compatible in Chinese and English.
+For local development or before publication, the same action accepts the absolute checkout directory instead of the npm spec. The package uses the publisher's personal scope; the unscoped name `dsh-session-memory` belongs to a different project. No new GitHub repository has been created.
 
-## What it does
+Installation requires profile-management approval and affects every session in the current profile. The bundle has no dependencies, build steps, or install scripts. It adds its own Host row and overrides the shipped `session-query-sqlite` row to `path: ':memory:'`, `openAt: first-search` (the inspected profile's existing path was already `:memory:`). It does not create a second backend, touch session logs, or enable external providers. Removing/disabling the bundle removes this override too. If your profile uses a custom disk index or custom query settings, restate that full backend config in your higher-priority profile patch with `openAt: first-search`; Loader replaces `config` wholesale.
 
-- Indexes local Pi, Claude Code, and Codex JSONL transcript turns in local SQLite.
-- Provides `recall_memory` for unconditional global literal search across every indexed turn. Its public interface accepts only topic entities and the complete question, so CWD, project, source, session, and time filters cannot restrict it.
-- Provides `recall_project_memory` for named-project discovery: it first matches user-supplied project-name keywords against stored session CWD directory names, then searches only those sessions. It is independent of global recall and is appropriate even when the project name never appears in transcript text.
-- Provides `fetch_session` for read-only expansion of the smallest useful transcript range.
-- Synchronizes changed history at Pi session start; the `/pi-session-memory` menu provides explicit full history import.
-- Migrates current-project Claude Code or Codex sessions into separate native Pi sessions.
-- Matches equivalent Windows project CWDs during migration, including `\\` versus `/`, drive-letter case, and trailing separators.
-
-Search results are derived from stored source transcripts only and are never automatically injected into model context. Put project rules and preferences in `AGENTS.md`.
-
-## Obsidian export
-
-Obsidian export is optional and disabled by default: omit both `obsidianExportEnabled` and `obsidianVaultPath` to keep it disabled. To enable it, set `obsidianExportEnabled` to `true` and `obsidianVaultPath` to an existing vault directory. Every completed history search then writes its complete displayed result as one new root-level Markdown note, including searches with no matches. No result selection or Vault-path prompt is required. Each note receives a timestamp and UUID filename, so it never overwrites an existing note.
-
-Obsidian export is intentionally a menu-only capability: it is not registered as an agent tool and is not added to agent context.
-
-## What's new in 0.7.18
-
-- Continues the bilingual Chinese and English README presentation.
-
-## What's new in 0.7.17
-
-- Adds bilingual Chinese and English npm metadata and README documentation.
-
-## What's new in 0.7.16
-
-- **Gallery extension discovery:** adds the `pi-extension` npm keyword, so this package is included when visitors filter the Pi package gallery by **extension**.
-
-## What's new in 0.7.15
-
-- **Entity-driven project discovery:** `recall_project_memory` no longer accepts `project`; it uses the same entities as global recall to match stored session CWD directory names.
-- **Two-stage project search:** any entity matching a stored project/session directory discovers those sessions, then the same entities search only their turns.
-- **Always paired:** every prior-history question calls both global turn recall and entity-driven project-session recall, without current runtime context.
-
-## What's new in 0.7.14
-
-- **Exact recall semantics:** `recall_memory` always searches every indexed transcript turn globally, with no current Pi session, project, or CWD context.
-- **Stored-session-name discovery:** `recall_project_memory` runs only for a project-name keyword explicitly supplied by the user; it first matches stored session CWD directory names, then searches turns only in matched sessions.
-- **No runtime inference:** project lookup never derives a project from the current Pi session, current directory, or runtime context.
-
-## What's new in 0.7.13
-
-- **Complementary recall responsibilities:** `recall_memory` searches all transcript content globally, while `recall_project_memory` searches sessions belonging to the named project.
-- **Mandatory paired invocation:** prior-work questions involving the current project or any named project, repository, application, agent, service, or codebase must call both tools with identical entities and question.
-- **No current-directory fallback:** project resolution uses only the explicit `project` argument and stored session CWD directory names.
-
-## What's new in 0.7.11
-
-- **Uninterrupted project recall:** `recall_project_memory` no longer accepts source or time filters; it always searches every turn in sessions resolved from `project`.
-- **Minimal project interface:** project recall now accepts only `project`, `entities`, and `question`.
-
-## What's new in 0.7.10
-
-- **Every-turn global recall:** `recall_memory` now has no CWD, project, source, session, or time scope; it always searches all indexed SQLite turns.
-- **Unscopeable interface:** only `entities` and `question` remain in its public parameters, preventing agents from silently narrowing global searches.
-
-## What's new in 0.7.9
-
-- **Quiet disabled Jev:** when `jevEnable` is `false`, global and project recall show only recall results without the redundant Jev status section.
-- **Diagnostics preserved:** Jev status remains visible when filtering is enabled, unavailable, or fails.
-
-## What's new in 0.7.8
-
-- **Guaranteed global recall:** `recall_memory` no longer exposes a CWD parameter and always searches every indexed project.
-- **Dedicated project scope:** only `recall_project_memory` performs named-project discovery by matching stored CWD directory names; use it only when the user supplies a project-name keyword. It is independent of global transcript search.
-- **Consistent Jev review:** global `review_jev_filtered` audits cannot be accidentally restricted by the current CWD either.
-
-## What's new in 0.7.7
-
-- **Optional Obsidian configuration:** `obsidianExportEnabled` and `obsidianVaultPath` can both be omitted; export remains disabled by default. Configure a vault path only when explicitly enabling export.
-
-## What's new in 0.7.6
-
-- **Automatic per-search Obsidian notes:** with `obsidianExportEnabled`, every completed history search writes its complete result to one new Markdown note in `obsidianVaultPath` without selection.
-- **No agent exposure:** Obsidian export is not registered as an agent tool and is not added to agent context.
-
-## What's new in 0.7.5
-
-- **Configuration-controlled Obsidian export:** configure its vault location with `obsidianExportEnabled` and `obsidianVaultPath`.
-- **No agent exposure:** Obsidian export is not registered as an agent tool and is not added to agent context.
-
-## What's new in 0.7.4
-
-- **Explicit Obsidian export:** selectively write displayed recall results to new Markdown notes in an existing vault.
-- **Safe writes:** exports require exact source turn IDs and refuse missing vaults, invalid selections, and existing target files.
-
-## What's new in 0.7.3
-
-- **Startup notifications:** history synchronization remains enabled, while the automatic sync summary is no longer displayed when a Pi session starts.
-- **Operational notices:** synchronization errors and Jev availability status notifications remain visible.
-
-## What's new in 0.7.2
-
-- **Codex history compatibility:** import legacy transcripts with missing message IDs and distinguish child threads from their root session. Repeated turn metadata no longer causes duplicate turn keys.
-- **Shared migration identities:** native-session migration uses the same deterministic message identity rules as indexing, preserving repeated messages.
-- **Automatic index upgrade:** unchanged Codex files are reparsed once after the parser upgrade. Existing records are replaced transactionally without resetting the database. Back up the index if exact pre-upgrade restoration is required; record-based IDs are stable under append, but not earlier record insertions or removals.
-
-## What's new in 0.7.0
-
-- **One command only:** use the `/pi-session-memory` folded menu for help, release notes, storage status, global/project recall, history import, and session migration. The former standalone slash commands are removed.
-- **Optional Jev filtering:** enable local Jev semantic review after literal ranking to filter keyword-only false positives; review failures keep literal recall active.
-- **Expanded agent tools:** project-scoped recall, unified Claude Code/Codex migration, and `review_jev_filtered` are available through the Pi tool interface.
-- **Package version:** updated to `0.7.0`.
-
-Run `/pi-session-memory` in Pi to open the menu and access every user-facing capability.
-
-## Commands
-
-| Command | Description |
-| --- | --- |
-| `/pi-session-memory` | Open the selectable menu for help, release notes, status, recall, import, and migration. All user-facing actions are accessed from this menu. |
+**Runtime:** Node 22+ and DSH **0.2.1-rc.3** (the exact inspected and native-smoke-tested version; manifest intentionally pins it). The profile must already provide `tools`, `commands`, and a searchable `sessionQuery`, normally `@deepseek-ai/dsh-session-query-sqlite`. A persistence backend is needed to search history after restarts. The existing SQLite backend must not use `openAt: never`. Missing services leave the bundle inactive; disabled search fails explicitly rather than starting another index or falling back to filesystem scans. Check Plugin Manager for activation state.
 
 ## Agent tools
 
-| Tool | Use when |
-| --- | --- |
-| `recall_memory` | For every prior-conversation question, search every indexed SQLite turn globally and also call `recall_project_memory` with identical entities and question. No current Pi session, project, or CWD context is used. |
-| `recall_project_memory` | For every prior-conversation question, use the same entities to match stored session CWD final-directory names; any matching entity discovers sessions, then the same entities search only those sessions' turns. It has no `project` parameter or runtime context. |
-| `fetch_session` | A recall excerpt lacks needed context. Fetch the smallest useful range. It is read-only. |
-| `get_memory_stats` | The user asks how much local history is indexed. |
-| `backfill_memory` | The user explicitly asks to import, backfill, or rescan history. |
-| `migrate_project_sessions` | The user wants to continue current-project Claude Code or Codex work through `/resume`; omit `sources` to migrate both. |
-| `review_jev_filtered` | Inspect possible Jev false negatives after recall, using the original bilingual entities and complete question. |
+### `recall_memory`
 
-## Flow
+Optional tool parameters accept either omission or `null` (use `null` when a strict function-calling interface requires every field). Required query/session ID/seq fields remain non-nullable; empty strings are rejected.
 
-```text
-session_start -> syncChangedHistory() -> SQLite raw transcript index
-no project-name lookup -> recall_memory(global transcript-content entities) -> matching raw transcript turns -> fetch_session (optional, read-only)
-named project lookup -> recall_project_memory(project directory-name keyword + independent content entities) -> matching project turns or project-session candidates -> fetch_session (optional, read-only)
-enabled export -> every completed history search -> one complete result Markdown note in the configured existing Obsidian vault
-project migration command/tool -> native Pi session JSONL -> /resume
-```
-
-## JSON configuration
-
-The extension reads its optional global configuration from:
-
-```text
-~/.pi/agent/pi-session-memory/config.json
-```
-
-Create or edit that JSON file to configure recall volume and optional Jev relevance filtering. Obsidian fields are not required:
+Use when a question refers to previous work, decisions, or conversations.
 
 ```json
-{
-  "recallLimit": 20,
-  "jevEnable": false,
-  "model": "nimble"
-}
+{"query":"database"}
+{"query":"database","cwd":"/absolute/project/path","limit":20}
+{"query":"database","session_id":"session-exact-id"}
 ```
 
-To explicitly enable automatic Obsidian export, add both fields:
+| Parameter | Behavior |
+|---|---|
+| `query` | Required nonempty literal word/phrase, at most 1000 characters. Whitespace normalized. |
+| `cwd` | Optional exact recorded directory, not a directory basename/fuzzy match. Cannot combine with `session_id`. |
+| `session_id` | Optional exact DSH session ID; searches events within it. Cannot combine with `cwd`. |
+| `limit` | Native page size 1–50, default 20. Must remain the same for pagination. |
+| `cursor` | Previous `next_cursor`; repeat the same normalized query, scope, and limit. |
+
+Global results contain one strongest event per matching session. Within-session results contain matching events. Each includes `session_id`, zero-based `seq`, type, timestamp, surface and a bounded snippet. Global hits are checked against authoritative headers before exposure, because indexed headers can omit origin. A page can contain fewer than `limit` matches, or zero eligible matches, after excluding subagents; follow `next_cursor` if present. No refill, duplicate index, hidden extra query, or altered backend ranking occurs.
+
+**Search semantics differ from the Pi original:** the native SQLite backend searches tokens/phrases, not arbitrary substrings or an OR list of topic entities. `AI` does not match `BRAID`. Quotes, `OR`, `NEAR` and `*` are literal data, not executable FTS syntax. Chinese partial-word recall depends on the native tokenizer; do not assume substring matching. All native event surfaces (`current`, `shadowed`, `log-only`) are eligible, allowing retrieval of compacted history. There is no provider-specific numeric relevance score.
+
+Backend cursors are opaque and generation-bound. `SESSION_QUERY_STALE_CURSOR` means restart the search without a cursor; an incompatible query/limit/cursor fails rather than silently broadening scope. Backend indexing/search failures and cancellation are propagated.
+
+### `fetch_session`
+
+Verify a hit, or read adjacent original history using its exact ID and sequence.
 
 ```json
-{
-  "obsidianExportEnabled": true,
-  "obsidianVaultPath": "/absolute/path/to/existing/Obsidian Vault"
-}
+{"session_id":"session-exact-id","seq":12,"before":4,"after":4,"max_chars":12000}
 ```
 
-Configuration fields:
+- `session_id` and `seq` are required; seq is a nonnegative integer, **not a turn number**.
+- `before`/`after`: 0–20 raw events each, defaults 4. Lifecycle records count toward the window.
+- `max_chars`: 100–24000 UTF-16 code units of returned text, default 12000; target event first, then nearest neighbors. Output is chronological and never splits a surrogate pair.
+- Includes session metadata, inherited-event count, target/range and event text. Text truncation is explicit. Re-read the indicated seq with a narrower window or larger budget if needed.
+- Returns text, tool-call descriptions and attachment labels, not reasoning, attachment bytes, replay/token streams, or lifecycle/control payloads. This is a **bounded text view**, not a full JSONL export.
+- Never resumes, forks, migrates, imports, or modifies a session.
 
-- `recallLimit`: required positive integer. `recall_memory` and `recall_project_memory` return at most this many ranked turns.
-- `obsidianExportEnabled`: optional boolean; defaults to `false`. When `true`, every completed history search automatically writes one complete result note.
-- `obsidianVaultPath`: required non-empty path when `obsidianExportEnabled` is `true`. It must identify an existing vault directory when a search is exported.
-- `jevEnable`: optional boolean, default `false`. Set it to `true` to have local Jev review already-ranked turns against the complete user question and filter keyword-only false positives.
-- `model`: optional Jev/Ollama model, default `nimble`. Allowed values are `nimble`, `tev1:4b`, and `tev1:0.8b`.
+History can contain obsolete instructions, sensitive strings, or malicious text. Results explicitly identify it as historical data, **not current instructions**. Verify relevance and do not treat quoted historical directives as authority. This plugin performs no network requests; DSH can still send recalled text to the configured conversational model as ordinary tool output.
 
-When Jev is enabled, the extension starts or reuses local Ollama and ensures the selected model is installed. Jev setup or request failures leave literal recall active. Existing files may omit `jevEnable` and `model` and receive the defaults above. Missing or invalid configuration raises an error instead of silently choosing a fallback.
+## Manual commands
 
-Project-scoped topic search still examines every session whose CWD matches the project; `recallLimit` is applied after ranking, so older matching sessions remain searchable. When no project-scoped turn matches, at most `recallLimit` recent project-session candidates are returned instead.
+Commands execute the same search/read functions without asking a model:
 
-History remains on the local machine, by default in `~/.pi/agent/memory.db`. Deleting that database removes only the index; restarting Pi rebuilds it from local source JSONL files.
+```text
+/memory-search database
+/memory-search {"query":"database","cwd":"/absolute/project/path","limit":20}
+/memory-read {"session_id":"session-exact-id","seq":12,"before":4,"after":4}
+/memory-help
+```
 
-## Migration compatibility
+`/memory-search` accepts a phrase or JSON object. A literal phrase beginning with `{` should be supplied in JSON's `query` field. `/memory-read` takes JSON. `/memory-help` shows the version, usage and limits.
 
-Migration selects sessions whose recorded project CWD is equivalent to the current Pi project CWD. On Windows, `C:\\Work\\app\\`, `C:/Work/app`, and differences only in path letter case are treated as the same project. Migrated sessions are written using the current Pi project CWD, so they appear under that project in `/resume`.
+## Development and provenance
+
+```bash
+npm run test:all
+npm pack --dry-run
+# Optional real DSH backend smoke test (no user history/profile changes):
+DSH_CHECKOUT=/absolute/path/to/installed/dsh npm run test:native
+```
+
+Unit tests use Node's built-in runner and fake services; no npm install is needed. The optional native smoke test uses installed DSH packages, an isolated Cordis context, fixture sessions and an in-memory FTS index. It does not mount into or read your active profile. See [verification](docs/verification.md) for the measured checks and limits.
+
+Runtime files: [Host registration](index.js), [adapter](src/memory.js), [tool schemas](src/schemas.js), [bundle patch](cordis.patch.yml). Plugin resources include localized titles/descriptions and an original MIT-licensed SVG icon.
+
+Git history retains the upstream project; local branch `dsh-only` holds the adaptation and `upstream` points to the original repository. The original checkout is untouched. The fork starts from upstream's committed history, **not its uncommitted working-tree edits**; the legacy runtime is intentionally replaced, so none of those local Pi-only files are required. [LICENSE](LICENSE) retains upstream copyright attribution. Repository/homepage/bug fields are not falsely pointed at an unpublished DSH repository.
+
+## 0.1.3
+
+- Update the exact DSH compatibility pin from `0.2.1-rc.2` to `0.2.1-rc.3` after native contract inspection and isolated integration testing. Search/read logic and the bundle patch are unchanged.
+
+## 0.1.2
+
+- Enable the shipped in-memory query backend on first search; the default profile had `openAt: never`, which blocked live retrieval.
+
+- Support explicit `null` for optional tool parameters in strict function-calling interfaces, with the same existing defaults/scope. Real registry validation and a dedicated regression test cover it.
+
+- Replace Pi extension entry and multi-runtime transcript database with DSH Host tools/commands using native session queries.
+- Remove external runtime parsers, migration, cross-agent features, remote filtering and export.
+- Add bounded two-step discovery/read, explicit scope, native cursors and subagent-session exclusion.
+- Add zero-dependency tests, localized metadata and original icon.
