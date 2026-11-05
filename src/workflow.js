@@ -6,7 +6,7 @@ import { NativeHistoryIndex } from './history-index.js';
 import { normalizeEntitySearch, recallEntities, boundRecall, normalizeTurnRead, readTurns } from './entity-recall.js';
 import { exportSearch } from './obsidian-export.js';
 
-// Tools and commands share one workflow; DSH persistence remains authoritative.
+// Agent tools share one workflow; DSH persistence remains authoritative.
 export class MemoryWorkflow {
   constructor(historySource, config, index) {
     this.historySource = historySource;

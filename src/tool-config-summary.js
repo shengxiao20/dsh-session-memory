@@ -7,7 +7,7 @@ export function formatToolConfigSummary(status, env = process.env) {
   const key = status.jev.apiKeyEnv === undefined
     ? 'API key=local-placeholder'
     : `${status.jev.apiKeyEnv}=${_envState(env[status.jev.apiKeyEnv])}`;
-  return `${CONFIG_SUMMARY_PREFIX}Jev=${_switch(status.jev.enabled)} (${model}; ${state}) · Obsidian=${_switch(status.obsidian.enabled)} · manageOllama=${_switch(status.jev.manageOllama)} · limit=${status.recall.limit}\nEnv · DSH_HOME=${_envState(env.DSH_HOME)} · ${key}`;
+  return `${CONFIG_SUMMARY_PREFIX}Discussion=${_switch(status.discussion.enabled)} · Jev=${_switch(status.jev.enabled)} (${model}; ${state}) · Obsidian=${_switch(status.obsidian.enabled)} · manageOllama=${_switch(status.jev.manageOllama)} · limit=${status.recall.limit}\nEnv · DSH_HOME=${_envState(env.DSH_HOME)} · ${key}`;
 }
 
 // Decorate Host rendering without changing the structured tool value or its schema.

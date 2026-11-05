@@ -51,7 +51,9 @@ function localRoot(value) {
   return url.origin;
 }
 function validateConfig(input, isAbsolute) {
-  object(input, "config", ["jev", "obsidian", "recall"]);
+  object(input, "config", ["discussion", "jev", "obsidian", "recall"]);
+  if (Object.hasOwn(input, "discussion")) object(input.discussion, "discussion", ["enabled"]);
+  const discussion = { enabled: false, ...input.discussion };
   if (Object.hasOwn(input, "recall")) object(input.recall, "recall", ["limit"]);
   const recall = { limit: 20, ...input.recall };
   if (!Number.isSafeInteger(recall.limit) || recall.limit < 1 || recall.limit > 50) throw new Error("Recall limit must be an integer between 1 and 50.");
@@ -59,7 +61,7 @@ function validateConfig(input, isAbsolute) {
   if (Object.hasOwn(input, "obsidian")) object(input.obsidian, "obsidian", ["enabled", "vaultPath"]);
   const jev = { enabled: false, model: "nimble", baseURL: "http://127.0.0.1:11434", manageOllama: false, ...input.jev };
   const obsidian = { enabled: false, ...input.obsidian };
-  for (const [label, value] of [["jev.enabled", jev.enabled], ["jev.manageOllama", jev.manageOllama], ["obsidian.enabled", obsidian.enabled]]) {
+  for (const [label, value] of [["discussion.enabled", discussion.enabled], ["jev.enabled", jev.enabled], ["jev.manageOllama", jev.manageOllama], ["obsidian.enabled", obsidian.enabled]]) {
     if (typeof value !== "boolean") throw new Error(`${label} must be a boolean.`);
   }
   if (typeof jev.model !== "string" || !jev.model.trim() || jev.model.length > 200) throw new Error("Jev model must be nonempty text of at most 200 characters.");
@@ -78,11 +80,12 @@ function validateConfig(input, isAbsolute) {
     throw new Error("Obsidian vaultPath must be an absolute path of at most 4000 characters.");
   }
   if (obsidian.enabled && obsidian.vaultPath === void 0) throw new Error("Enabled Obsidian export requires an existing absolute vaultPath.");
-  return Object.freeze({ recall: Object.freeze(recall), jev: Object.freeze(jev), obsidian: Object.freeze(obsidian) });
+  return Object.freeze({ discussion: Object.freeze(discussion), recall: Object.freeze(recall), jev: Object.freeze(jev), obsidian: Object.freeze(obsidian) });
 }
 
 // client/config-editor.js
 var FIELDS = [
+  { key: "discussion.enabled", type: "checkbox" },
   { key: "recall.limit", type: "number", min: 1, max: 50 },
   { key: "jev.enabled", type: "checkbox" },
   { key: "jev.model", type: "text" },
@@ -106,7 +109,7 @@ function editDraft(draft, field, input) {
   return { ...draft, ops: [...draft.ops.filter((item) => item.path.join(".") !== field.key), op] };
 }
 function resetDraft(draft) {
-  return { ...draft, ops: [{ op: "unset", path: ["recall"] }, { op: "unset", path: ["jev"] }, { op: "unset", path: ["obsidian"] }] };
+  return { ...draft, ops: [{ op: "unset", path: ["discussion"] }, { op: "unset", path: ["recall"] }, { op: "unset", path: ["jev"] }, { op: "unset", path: ["obsidian"] }] };
 }
 function draftValue(draft) {
   const value = structuredClone(draft.value);
@@ -165,7 +168,7 @@ function Editor({ form, t }) {
     { onSubmit: save, style: panel, "aria-label": t("title") },
     (0, import_react.createElement)("p", null, t("intro")),
     !form.state.writable && (0, import_react.createElement)("p", { role: "status" }, t("readOnly")),
-    ...["recall", "jev", "obsidian"].map((group) => (0, import_react.createElement)(
+    ...["discussion", "recall", "jev", "obsidian"].map((group) => (0, import_react.createElement)(
       "fieldset",
       { key: group, disabled, style: panel },
       (0, import_react.createElement)("legend", null, t(group)),
@@ -210,12 +213,15 @@ function ConfigPage({ view, form, t }) {
 var en_default = {
   meta: {
     title: "DSH Session Memory",
-    description: "DSH-only persisted source-turn recall: plugin-owned SQLite, entity ranking/global-project dedup, local/remote Jev, history reads/stats/backfill and Obsidian."
+    description: "DSH-only persisted source-turn recall with optional multi-agent Discussion, plugin-owned SQLite, entity ranking/global-project dedup, local/remote Jev, history reads/stats/backfill and Obsidian."
   },
   config: {
     title: "DSH Session Memory configuration",
-    summary: "Recall defaults, local/remote Jev and Obsidian export settings.",
-    intro: "Changes are staged until Save. Saving applies live and cancels outstanding memory work; it does not start a model or write a note.",
+    summary: "Multi-agent Discussion, recall defaults, local/remote Jev and Obsidian export settings.",
+    intro: "Changes are staged until Save. Saving applies live and cancels outstanding memory work; it does not start a model, Discussion, or note export.",
+    discussion: "Multi-agent Discussion",
+    "discussion.enabled": "Enable Discussion",
+    "discussion.enabled.hint": "Default off. When enabled, the main Agent can consult 1\u20133 user-confirmed historical DSH sessions sequentially. Each participant uses the main Agent's provider/model, has no tools, and receives only its selected evidence.",
     recall: "Recall defaults",
     "recall.limit": "Top K per stage",
     "recall.limit.hint": "Integer 1\u201350, default 20. Filters/dedup never refill. Call arguments can set a different limit.",
@@ -252,12 +258,15 @@ var en_default = {
 var zh_default = {
   meta: {
     title: "DSH \u4F1A\u8BDD\u8BB0\u5FC6",
-    description: "\u4EC5\u6301\u4E45\u5316 DSH \u6E90 turn \u53EC\u56DE\u3001\u63D2\u4EF6\u81EA\u6709 SQLite\u3001\u5B9E\u4F53\u6392\u5E8F\u53CA\u5168\u5C40\u9879\u76EE\u53BB\u91CD\u3001\u672C\u5730\uFF0F\u8FDC\u7A0B Jev\u3001\u5386\u53F2\u8BFB\u53D6\uFF0F\u7EDF\u8BA1\uFF0F\u91CD\u5EFA\u548C Obsidian\u3002"
+    description: "\u4EC5\u6301\u4E45\u5316 DSH \u6E90 turn \u53EC\u56DE\u548C\u53EF\u9009 multi-agent Discussion\u3001\u63D2\u4EF6\u81EA\u6709 SQLite\u3001\u5B9E\u4F53\u6392\u5E8F\u53CA\u5168\u5C40\u9879\u76EE\u53BB\u91CD\u3001\u672C\u5730\uFF0F\u8FDC\u7A0B Jev\u3001\u5386\u53F2\u8BFB\u53D6\uFF0F\u7EDF\u8BA1\uFF0F\u91CD\u5EFA\u548C Obsidian\u3002"
   },
   config: {
     title: "DSH Session Memory \u53C2\u6570\u914D\u7F6E",
-    summary: "\u53EC\u56DE\u9ED8\u8BA4\u503C\u3001\u672C\u5730\uFF0F\u8FDC\u7A0B Jev \u548C Obsidian \u5BFC\u51FA\u8BBE\u7F6E\u3002",
-    intro: "\u53C2\u6570\u5148\u6682\u5B58\uFF0C\u70B9\u51FB\u4FDD\u5B58\u624D\u63D0\u4EA4\u3002\u4FDD\u5B58\u7ACB\u5373\u5E94\u7528\u5E76\u53D6\u6D88\u6B63\u5728\u6267\u884C\u7684\u8BB0\u5FC6\u67E5\u8BE2\uFF0C\u4E0D\u542F\u52A8\u6A21\u578B\u6216\u5199\u7B14\u8BB0\u3002",
+    summary: "Multi-agent Discussion\u3001\u53EC\u56DE\u9ED8\u8BA4\u503C\u3001\u672C\u5730\uFF0F\u8FDC\u7A0B Jev \u548C Obsidian \u5BFC\u51FA\u8BBE\u7F6E\u3002",
+    intro: "\u53C2\u6570\u5148\u6682\u5B58\uFF0C\u70B9\u51FB\u4FDD\u5B58\u624D\u63D0\u4EA4\u3002\u4FDD\u5B58\u7ACB\u5373\u5E94\u7528\u5E76\u53D6\u6D88\u6B63\u5728\u6267\u884C\u7684\u8BB0\u5FC6\u4EFB\u52A1\uFF0C\u4F46\u4E0D\u542F\u52A8\u6A21\u578B\u3001Discussion \u6216\u7B14\u8BB0\u5BFC\u51FA\u3002",
+    discussion: "Multi-agent Discussion",
+    "discussion.enabled": "\u542F\u7528 Discussion",
+    "discussion.enabled.hint": "\u9ED8\u8BA4\u5173\u95ED\u3002\u542F\u7528\u540E\uFF0C\u4E3B Agent \u53EF\u987A\u5E8F\u54A8\u8BE2 1\u20133 \u4E2A\u7ECF\u7528\u6237\u786E\u8BA4\u7684\u5386\u53F2 DSH session\u3002\u6BCF\u4E2A\u53C2\u4E0E\u8005\u4F7F\u7528\u4E3B Agent \u7684 provider\uFF0Fmodel\u3001\u6CA1\u6709\u5DE5\u5177\uFF0C\u5E76\u4E14\u53EA\u63A5\u6536\u6240\u9009\u8BC1\u636E\u3002",
     recall: "\u53EC\u56DE\u9ED8\u8BA4\u503C",
     "recall.limit": "\u6BCF\u9636\u6BB5 Top K",
     "recall.limit.hint": "1\u201350 \u6574\u6570\uFF0C\u9ED8\u8BA4 20\u3002\u7B5B\u9009\uFF0F\u53BB\u91CD\u4E0D\u8865\u9F50\uFF1B\u8C03\u7528\u53C2\u6570\u53EF\u6307\u5B9A\u4E0D\u540C limit\u3002",

@@ -27,7 +27,7 @@ function Editor({ form, t }) {
   return h('form', { onSubmit: save, style: panel, 'aria-label': t('title') },
     h('p', null, t('intro')),
     !form.state.writable && h('p', { role: 'status' }, t('readOnly')),
-    ...['recall', 'jev', 'obsidian'].map(group => h('fieldset', { key: group, disabled, style: panel },
+    ...['discussion', 'recall', 'jev', 'obsidian'].map(group => h('fieldset', { key: group, disabled, style: panel },
       h('legend', null, t(group)),
       ...FIELDS.filter(field => field.key.startsWith(`${group}.`)).map(field => h('label', { key: field.key, style: { display: 'grid', gap: '6px' } },
         h('span', null, t(field.key)),

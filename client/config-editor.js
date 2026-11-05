@@ -1,6 +1,7 @@
 import { validateConfig } from '../src/config-values.js';
 
 export const FIELDS = [
+  { key: 'discussion.enabled', type: 'checkbox' },
   { key: 'recall.limit', type: 'number', min: 1, max: 50 },
   { key: 'jev.enabled', type: 'checkbox' },
   { key: 'jev.model', type: 'text' },
@@ -22,7 +23,7 @@ export function editDraft(draft, field, input) {
   return { ...draft, ops: [...draft.ops.filter(item => item.path.join('.') !== field.key), op] };
 }
 export function resetDraft(draft) {
-  return { ...draft, ops: [{ op: 'unset', path: ['recall'] }, { op: 'unset', path: ['jev'] }, { op: 'unset', path: ['obsidian'] }] };
+  return { ...draft, ops: [{ op: 'unset', path: ['discussion'] }, { op: 'unset', path: ['recall'] }, { op: 'unset', path: ['jev'] }, { op: 'unset', path: ['obsidian'] }] };
 }
 export function draftValue(draft) {
   const value = structuredClone(draft.value);

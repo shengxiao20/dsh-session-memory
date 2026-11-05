@@ -18,7 +18,6 @@ const { default: Agents } = await load('@deepseek-ai/dsh-agent');
 const Persistence = await load('@deepseek-ai/dsh-session-persistence-jsonl');
 const { default: SystemPrompt } = await load('@deepseek-ai/dsh-system-prompt');
 const { default: Tools } = await load('@deepseek-ai/dsh-tools');
-const { default: Commands } = await load('@deepseek-ai/dsh-commands');
 const ctx = new Context();
 const vaultPath = await mkdtemp(join(tmpdir(), 'dsh-native-memory-'));
 const originalHome = process.env.HOME, originalDshHome = process.env.DSH_HOME;
@@ -45,8 +44,8 @@ try {
   await ctx.plugin(Agents);
   await ctx.plugin(Persistence, { root: join(process.env.DSH_HOME, 'sessions'), compression: 'none' });
   await ctx.plugin(SystemPrompt, {});
-  await ctx.plugin(Tools, {}); await ctx.plugin(Commands, {});
-  assert.deepEqual(MemoryPlugin.inject, ['sessions', 'sessionPersistence', 'agents', 'tools', 'commands']);
+  await ctx.plugin(Tools, {});
+  assert.deepEqual(MemoryPlugin.inject, ['sessions', 'sessionPersistence', 'agents', 'tools']);
   const baselinePlugin = ctx.plugin(MemoryPlugin); await baselinePlugin;
   for (const name of ['recall_memory', 'discuss_memory', 'review_jev_filtered', 'fetch_session', 'get_memory_stats', 'backfill_memory']) assert.ok(ctx.tools.get(name));
 

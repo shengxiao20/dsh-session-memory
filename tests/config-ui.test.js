@@ -19,9 +19,12 @@ function form() {
 
 test('Config exposes volatile groups while retaining strict normalization', () => {
   const config = Config({});
+  assert.equal(Config.dict.discussion.meta.volatile, true);
   assert.equal(Config.dict.jev.meta.volatile, true);
   assert.equal(Config.dict.obsidian.meta.volatile, true);
+  assert.equal(config.discussion.get().enabled, false);
   assert.equal(config.jev.get().enabled, false);
+  assert.equal(normalizeConfig(config).discussion.enabled, false);
   assert.equal(normalizeConfig(config).jev.enabled, false);
   assert.throws(() => normalizeConfig(Config({ jev: { baseURL: 'https://user:secret@remote.invalid' } })), /without credentials/);
 });
@@ -56,8 +59,24 @@ test('blank optional fields and staged reset inherit the Host composition, not h
   assert.equal(draftValue(draft).jev.contextWindow, 4096);
   const reset = resetDraft(draft);
   assert.equal(draftValue(reset).jev.model, 'inherited-model');
-  target.mutate = async (ops, revision) => { assert.deepEqual(ops, [{ op: 'unset', path: ['recall'] }, { op: 'unset', path: ['jev'] }, { op: 'unset', path: ['obsidian'] }]); assert.equal(revision, 4); return true; };
+  target.mutate = async (ops, revision) => { assert.deepEqual(ops, [{ op: 'unset', path: ['discussion'] }, { op: 'unset', path: ['recall'] }, { op: 'unset', path: ['jev'] }, { op: 'unset', path: ['obsidian'] }]); assert.equal(revision, 4); return true; };
   assert.equal(await saveDraft(target, reset), true);
+});
+
+test('Plugin Manager stages and saves the Discussion switch explicitly', async () => {
+  const target = form();
+  const calls = [];
+  target.mutate = async (...args) => { calls.push(args); return true; };
+  let page;
+  await act(async () => { page = Renderer.create(React.createElement(ConfigPage, { view: 'page', form: target, t })); });
+  const toggle = () => page.root.findByProps({ name: 'discussion.enabled' });
+  assert.equal(toggle().props.checked, false);
+  await act(async () => toggle().props.onChange({ target: { checked: true } }));
+  assert.equal(toggle().props.checked, true);
+  assert.equal(calls.length, 0);
+  await act(async () => page.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  assert.deepEqual(calls, [[[ { op: 'set', path: ['discussion', 'enabled'], value: true } ], 4]]);
+  await act(async () => page.unmount());
 });
 
 test('React page writes only on Save, preserves refused/transport-failed draft, and discards edits', async () => {
@@ -130,11 +149,13 @@ test('live workflow replacement cancels and drains old work without starting a m
   await ready;
   workflow.reconfigure({ jev: { enabled: true, contextWindow: 8192 } });
   assert.equal(workflow.status().jev.state, 'reconfiguring');
-  workflow.reconfigure({ jev: { enabled: false, model: 'new-model' } });
+  assert.equal(workflow.status().discussion.enabled, false);
+  workflow.reconfigure({ discussion: { enabled: true }, jev: { enabled: false, model: 'new-model' } });
   await workflow.transition;
   await rejected;
   assert.equal(previous.runtime.state, 'disposed');
   assert.equal(previous.pending.size, 0);
+  assert.equal(workflow.status().discussion.enabled, true);
   assert.equal(workflow.status().jev.model, 'new-model');
   assert.equal(workflow.status().jev.state, 'disabled');
   assert.equal(workflow.current.runtime.startup, undefined);

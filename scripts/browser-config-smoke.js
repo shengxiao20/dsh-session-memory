@@ -21,7 +21,7 @@ window.start = () => {
     slots: { inject(name, register) { return register(); }, register(spec, component) { window.slotKey = spec.key; Component = component; return () => {}; } },
   });
   const root = createRoot(document.getElementById('app'));
-  const base = { recall: { limit: 20 }, jev: { enabled: false, model: 'nimble', baseURL: 'http://127.0.0.1:11434', manageOllama: false }, obsidian: { enabled: false } };
+  const base = { discussion: { enabled: false }, recall: { limit: 20 }, jev: { enabled: false, model: 'nimble', baseURL: 'http://127.0.0.1:11434', manageOllama: false }, obsidian: { enabled: false } };
   const state = { status: 'ready', revision: 1, writable: true, value: structuredClone(base), base: structuredClone(base) };
   window.fixture = { calls: [], accepted: true, state, lang: 'en', discardPage() { root.render(null); }, render() { render(); } };
   const form = { state, async mutate(ops, revision) {
@@ -57,6 +57,8 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   assert.equal(await page.evaluate(() => window.slotKey), '@shengxiao04/dsh-session-memory#dsh-session-memory');
+  assert.equal(await page.locator('[name="discussion.enabled"]').isChecked(), false);
+  await page.locator('[name="discussion.enabled"]').check();
   await page.locator('[name="recall.limit"]').fill('7');
   await page.locator('[name="jev.enabled"]').check();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -65,6 +67,7 @@ try {
   await page.locator('[name="jev.contextWindow"]').fill('8192');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Saved;' }).waitFor();
+  assert.equal(await page.evaluate(() => window.fixture.state.value.discussion.enabled), true);
   assert.equal(await page.evaluate(() => window.fixture.state.value.jev.enabled), true);
   assert.equal(await page.evaluate(() => window.fixture.state.value.recall.limit), 7);
   await page.locator('[name="jev.baseURL"]').fill('https://remote.invalid');
@@ -85,8 +88,10 @@ try {
   await page.getByRole('button', { name: 'Discard edits', exact: true }).click();
   assert.equal(await page.locator('[name="jev.model"]').inputValue(), 'nimble');
   await page.getByRole('button', { name: 'Stage inherited defaults', exact: true }).click();
+  assert.equal(await page.locator('[name="discussion.enabled"]').isChecked(), false);
   assert.equal(await page.locator('[name="jev.enabled"]').isChecked(), false);
   assert.equal(await page.locator('[name="recall.limit"]').inputValue(), '20');
+  assert.equal(await page.evaluate(() => window.fixture.state.value.discussion.enabled), true);
   assert.equal(await page.evaluate(() => window.fixture.state.value.jev.enabled), true);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Saved;' }).waitFor();
@@ -106,7 +111,7 @@ try {
   assert.equal(await page.locator('[name="jev.model"]').inputValue(), 'nimble');
   assert.equal(await page.evaluate(() => window.fixture.calls.length), writes);
   assert.deepEqual(errors, []);
-  console.log('Browser config PASS: built DSH factory/row page, staged save/reset/discard, missing remote key variable/window validation, explicit remote staged save, stale revision retains draft, read-only, Chinese labels and leave-page discard. Host form and manager layout are fixtures, not active-profile UI.');
+  console.log('Browser config PASS: built DSH factory/row page, explicit Discussion switch, staged save/reset/discard, missing remote key variable/window validation, explicit remote staged save, stale revision retains draft, read-only, Chinese labels and leave-page discard. Host form and manager layout are fixtures, not active-profile UI.');
 } finally {
   await browser?.close();
   await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });

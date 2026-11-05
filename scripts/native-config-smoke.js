@@ -17,7 +17,6 @@ const { default: Sessions } = await load('@deepseek-ai/dsh-session');
 const { default: Agents } = await load('@deepseek-ai/dsh-agent');
 const Persistence = await load('@deepseek-ai/dsh-session-persistence-jsonl');
 const { default: Tools } = await load('@deepseek-ai/dsh-tools');
-const { default: Commands } = await load('@deepseek-ai/dsh-commands');
 const { default: SystemPrompt } = await load('@deepseek-ai/dsh-system-prompt');
 const { ClientModuleRegistry } = await load('@deepseek-ai/dsh-client-modules');
 const ctx = new Context();
@@ -31,7 +30,6 @@ try {
   await ctx.plugin(Persistence, { root: join(process.env.DSH_HOME, 'sessions'), compression: 'none' });
   await ctx.plugin(SystemPrompt, {});
   await ctx.plugin(Tools, {});
-  await ctx.plugin(Commands, {});
   await ctx.plugin(Loader, { baseUrl: pathToFileURL(resolve('index.js')).href });
   ctx.loader.builtins.memory = MemoryPlugin;
   const id = await ctx.loader.create({ id: 'dsh-session-memory', name: './index.js', config: {} });
@@ -58,23 +56,17 @@ try {
   const descriptor = () => ctx.settings.describe().find(row => row.ns === id);
   assert.ok(descriptor());
   assert.equal(descriptor().autoGenerate, false);
+  assert.equal(descriptor().value.discussion.enabled, false);
   assert.equal(descriptor().value.jev.enabled, false);
   const revision = descriptor().revision;
   await ctx.settings.mutate(id, [
+    { op: 'set', path: ['discussion', 'enabled'], value: true },
     { op: 'set', path: ['jev', 'enabled'], value: true },
     { op: 'set', path: ['jev', 'contextWindow'], value: 8192 },
   ], revision);
   assert.equal(entry.fiber, original, 'volatile update must not remount Host registrations');
-  const readStatus = () => {
-    const text = ctx.commands.find({}, 'memory-status').handler({}).text;
-    assert.doesNotMatch(text, /^DSH Session Memory/);
-    const value = JSON.parse(text);
-    assert.equal(Object.hasOwn(value, 'version'), false);
-    return value;
-  };
-  let status = readStatus();
-  assert.equal(status.jev.enabled, true);
-  assert.ok(['idle', 'reconfiguring'].includes(status.jev.state));
+  assert.equal(descriptor().value.discussion.enabled, true);
+  assert.equal(descriptor().value.jev.enabled, true);
   await assert.rejects(ctx.settings.mutate(id, [{ op: 'set', path: ['jev', 'model'], value: 'stale' }], revision), error => error.code === 'SETTINGS_CONFLICT');
   const writeCount = writes;
   await assert.rejects(ctx.settings.mutate(id, [{ op: 'set', path: ['jev', 'baseURL'], value: 'https://remote.invalid' }], descriptor().revision), /apiKeyEnv/);
@@ -87,8 +79,6 @@ try {
   ], descriptor().revision);
   assert.equal(entry.fiber, original);
   assert.equal(descriptor().value.jev.apiKeyEnv, 'DSH_JEV_KEY');
-  status = readStatus();
-  assert.ok(['idle', 'reconfiguring'].includes(status.jev.state));
   await ctx.settings.mutate(id, [{ op: 'unset', path: ['jev'] }, { op: 'unset', path: ['obsidian'] }], descriptor().revision);
   const session = ctx.sessions.create('config-live', { meta: { cwd: '/fixture' } });
   await ctx.sessionPersistence.create(session.header);
@@ -96,8 +86,8 @@ try {
   await ctx.sessions.flush(session);
   const result = await ctx.tools.execute({ callId: 'config-test', name: 'recall_memory', arguments: { entities: ['config-token', 'history'], question: 'Find config history' }, signal: new AbortController().signal });
   assert.equal(result.isError, false, JSON.stringify(result));
-  status = readStatus();
-  assert.equal(status.jev.state, 'disabled');
+  assert.equal(descriptor().value.jev.enabled, false);
+  assert.match(result.content[1].text, /Jev=off/);
   assert.equal(result.value.results.length, 1);
   await ctx.plugin(ClientModuleRegistry);
   const graph = ctx.clientModules.graph();
@@ -110,7 +100,7 @@ try {
   await ctx.loader.await();
   assert.equal(ctx.tools.get('recall_memory'), undefined);
   assert.equal(descriptor(), undefined);
-  console.log('Native config PASS: real Loader/Settings volatile projection, exact row namespace, atomic mutation, revision conflict, invalid candidate rejection, explicit remote API-key-variable save without model startup, live reset/search and client artifact discovery. Profile editor is an in-memory test adapter.');
+  console.log('Native config PASS: real Loader/Settings volatile projection, explicit Discussion switch, exact row namespace, atomic mutation, revision conflict, invalid candidate rejection, explicit remote API-key-variable save without model startup, live reset/search and client artifact discovery. Profile editor is an in-memory test adapter.');
 } finally {
   await ctx.fiber.dispose(); await rm(dir, { recursive: true, force: true });
   if (oldHome === undefined) delete process.env.HOME; else process.env.HOME = oldHome;

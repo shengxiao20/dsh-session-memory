@@ -4,6 +4,7 @@ import { CONFIG_SUMMARY_PREFIX, formatToolConfigSummary, withToolConfigSummary }
 
 function status(overrides = {}) {
   return {
+    discussion: { enabled: false },
     recall: { limit: 20 },
     jev: {
       enabled: false,
@@ -20,18 +21,19 @@ function status(overrides = {}) {
 
 test('tool config summary mirrors Pi switches without exposing paths or credential values', () => {
   const summary = formatToolConfigSummary(status(), { DSH_HOME: '  ' });
-  assert.equal(summary, 'Config · Jev=off (nimble; disabled) · Obsidian=on · manageOllama=on · limit=20\nEnv · DSH_HOME=unset · API key=local-placeholder');
+  assert.equal(summary, 'Config · Discussion=off · Jev=off (nimble; disabled) · Obsidian=on · manageOllama=on · limit=20\nEnv · DSH_HOME=unset · API key=local-placeholder');
   assert.doesNotMatch(summary, /secret|history\.sqlite|127\.0\.0\.1/);
 });
 
 test('remote Jev summary reports only configured environment variable state and normalizes labels', () => {
   const remote = status({
+    discussion: { enabled: true },
     recall: { limit: 40 },
     jev: { enabled: true, model: ' remote\n model ', baseURL: 'https://private.example', apiKeyEnv: 'DSH_JEV_API_KEY', manageOllama: false, state: 'ready' },
     obsidian: { enabled: false, vaultPath: '/private/vault' },
   });
   const set = formatToolConfigSummary(remote, { DSH_HOME: '/private/dsh', DSH_JEV_API_KEY: 'super-secret' });
-  assert.equal(set, 'Config · Jev=on (remote model; ready) · Obsidian=off · manageOllama=off · limit=40\nEnv · DSH_HOME=set · DSH_JEV_API_KEY=set');
+  assert.equal(set, 'Config · Discussion=on · Jev=on (remote model; ready) · Obsidian=off · manageOllama=off · limit=40\nEnv · DSH_HOME=set · DSH_JEV_API_KEY=set');
   assert.doesNotMatch(set, /super-secret|private\.example|private\/vault|private\/dsh/);
   assert.match(formatToolConfigSummary(remote, {}), /DSH_JEV_API_KEY=unset$/);
 });
@@ -50,9 +52,9 @@ test('render decorator appends an invocation-time snapshot without mutating orig
   assert.deepEqual(original, [{ type: 'text', text: 'evidence' }]);
   assert.equal(first[1].text.startsWith(CONFIG_SUMMARY_PREFIX), true);
 
-  current = status({ jev: { enabled: true, model: 'new-model', manageOllama: false, state: 'idle' }, obsidian: { enabled: false }, recall: { limit: 7 } });
+  current = status({ discussion: { enabled: true }, jev: { enabled: true, model: 'new-model', manageOllama: false, state: 'idle' }, obsidian: { enabled: false }, recall: { limit: 7 } });
   const second = render({}, value);
-  assert.match(second[1].text, /Jev=on \(new-model; idle\).*Obsidian=off.*manageOllama=off.*limit=7/);
+  assert.match(second[1].text, /Discussion=on.*Jev=on \(new-model; idle\).*Obsidian=off.*manageOllama=off.*limit=7/);
   assert.notEqual(second[1].text, first[1].text);
 });
 

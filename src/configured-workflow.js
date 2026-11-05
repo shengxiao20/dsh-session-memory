@@ -61,7 +61,7 @@ export class ConfiguredWorkflow {
   status() {
     if (this.failure) throw this.failure;
     const status = this.current.status();
-    return { ...status, recall: this.config.recall, jev: { ...status.jev, ...this.config.jev, state: this.appliedRevision === this.revision ? status.jev.state : 'reconfiguring' }, obsidian: this.config.obsidian };
+    return { ...status, discussion: this.config.discussion, recall: this.config.recall, jev: { ...status.jev, ...this.config.jev, state: this.appliedRevision === this.revision ? status.jev.state : 'reconfiguring' }, obsidian: this.config.obsidian };
   }
   async shutdown() {
     this.disposed = true;

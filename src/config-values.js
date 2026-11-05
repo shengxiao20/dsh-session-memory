@@ -20,7 +20,9 @@ export function localRoot(value) {
   return url.origin;
 }
 export function validateConfig(input, isAbsolute) {
-  object(input, 'config', ['jev', 'obsidian', 'recall']);
+  object(input, 'config', ['discussion', 'jev', 'obsidian', 'recall']);
+  if (Object.hasOwn(input, 'discussion')) object(input.discussion, 'discussion', ['enabled']);
+  const discussion = { enabled: false, ...input.discussion };
   if (Object.hasOwn(input, 'recall')) object(input.recall, 'recall', ['limit']);
   const recall = { limit: 20, ...input.recall };
   if (!Number.isSafeInteger(recall.limit) || recall.limit < 1 || recall.limit > 50) throw new Error('Recall limit must be an integer between 1 and 50.');
@@ -28,7 +30,7 @@ export function validateConfig(input, isAbsolute) {
   if (Object.hasOwn(input, 'obsidian')) object(input.obsidian, 'obsidian', ['enabled', 'vaultPath']);
   const jev = { enabled: false, model: 'nimble', baseURL: 'http://127.0.0.1:11434', manageOllama: false, ...input.jev };
   const obsidian = { enabled: false, ...input.obsidian };
-  for (const [label, value] of [['jev.enabled', jev.enabled], ['jev.manageOllama', jev.manageOllama], ['obsidian.enabled', obsidian.enabled]]) {
+  for (const [label, value] of [['discussion.enabled', discussion.enabled], ['jev.enabled', jev.enabled], ['jev.manageOllama', jev.manageOllama], ['obsidian.enabled', obsidian.enabled]]) {
     if (typeof value !== 'boolean') throw new Error(`${label} must be a boolean.`);
   }
   if (typeof jev.model !== 'string' || !jev.model.trim() || jev.model.length > 200) throw new Error('Jev model must be nonempty text of at most 200 characters.');
@@ -47,5 +49,5 @@ export function validateConfig(input, isAbsolute) {
     throw new Error('Obsidian vaultPath must be an absolute path of at most 4000 characters.');
   }
   if (obsidian.enabled && obsidian.vaultPath === undefined) throw new Error('Enabled Obsidian export requires an existing absolute vaultPath.');
-  return Object.freeze({ recall: Object.freeze(recall), jev: Object.freeze(jev), obsidian: Object.freeze(obsidian) });
+  return Object.freeze({ discussion: Object.freeze(discussion), recall: Object.freeze(recall), jev: Object.freeze(jev), obsidian: Object.freeze(obsidian) });
 }

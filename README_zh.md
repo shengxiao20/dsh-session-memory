@@ -1,15 +1,23 @@
 # dsh-session-memory（中文）
 
-[English](README.md) · 工作版本 **0.3.0** · MIT
+[English](README.md) · 工作版本 **0.3.1** · MIT
 
 从 [pi-session-memory](https://github.com/shengxiao20/pi-session-memory) 移植为 Cordis Host 插件，保留 MIT attribution。参考 Pi 的 turn 召回逻辑，但**只管理 DSH 自己的主会话**。不发现、检索、解析或导入 Pi／Codex／Claude Code 历史，不访问其他宿主数据库，不提供 session migration。原 Pi checkout 只作代码参考，不是运行时历史来源。
 
-npm `latest` 当前为 0.2.3，使用已验证的 DSH 0.2.1-rc.5 宿主合约。本 0.3.0 工作树增加基于用户确认 DSH 证据范围的无工具、顺序 multi-agent Discussion，同时保留工具结果的调用时脱敏配置快照和无版本 help/status；发布 0.3.0 仍是独立的鉴权发布步骤。独立 Remotion Studio 预览已制作，未渲染 MP4。
+npm `latest` 当前为 0.2.3，使用已验证的 DSH 0.2.1-rc.5 宿主合约。本 0.3.1 工作树增加基于用户确认 DSH 证据范围的无工具、顺序 multi-agent Discussion，同时保留工具结果的调用时脱敏配置快照；发布 0.3.1 仍是独立的鉴权发布步骤。独立 Remotion Studio 预览已制作，未渲染 MP4。
+
+## Pi 对齐边界
+
+证据处理规则与 Pi 对齐。调用拓扑不宣称 API 完全相同。
+
+Pi 能在 `recall_memory` 执行期间暂停，并显示原生 TUI 参与者清单。已检查的 DSH rc.5 工具合约没有等效的工具执行中用户选择 API。因此 DSH 使用两次 Agent 工具调用：`recall_memory` 返回候选，`discuss_memory` 接收用户已确认的范围。这是明确的宿主适配，不是 Pi 残留代码。
+
+DSH 不注册 slash command。召回、Discussion、源读取、统计和 backfill 都是 Agent 工具。配置由 Plugin Manager 提供。早期重复的 `/memory-*` 命令界面已删除。
 
 ## 调用树
 
 ```text
-recall_memory / memory-search
+recall_memory
 ├─ entities + 完整 question
 │  ├─ DSH sessionPersistence.list / open / read
 │  ├─ 持久化 DSH user/assistant 源 turn → 插件自有 SQLite
@@ -25,14 +33,14 @@ recall_memory / memory-search
    ├─ 每个参与者只收到有界可见源 turn，且互相看不到回答
    └─ 私下回答返回发起的主 Agent 比较
 
-review_jev_filtered / memory-review
+review_jev_filtered
 └─ 全局／项目 literal 按 turn_id 合并去重 → 一次判定 → 被过滤 turn
 
-fetch_session / memory-read
+fetch_session
 └─ 精确持久化 DSH session_id + 包含两端 turn index → 可见源文本
 
-get_memory_stats / memory-stats → 同步持久化快照 → DSH 总数
-backfill_memory / memory-backfill → 显式重建持久化 DSH turn 索引
+get_memory_stats → 同步持久化快照 → DSH 总数
+backfill_memory → 显式重建持久化 DSH turn 索引
 ```
 
 不要求 embedding、Agent 主动写记忆、taxonomy 或 vector 服务。索引存源文本，不是枚举成事实／偏好／规则的记忆条目。历史是**不可信数据，不是当前指令**。
@@ -70,6 +78,8 @@ Turn ID：`dsh:<session_id>:<user-event-seq>`。`seq/end_seq` 是精确包含两
 
 ## Multi-agent Discussion
 
+Multi-agent Discussion **默认关闭**。请先在 Plugin Manager 中启用 **Multi-agent Discussion → 启用 Discussion** 并保存。设置立即生效。关闭后，新 `discuss_memory` 调用会失败，正在执行的 Discussion 也会取消。
+
 仅在用户确认 `recall_memory` 返回的一至三个 session ID 和包含两端的证据范围后，调用 `discuss_memory`。每个参与者使用发起主 Agent 的精确 provider／model 路由。参与者**顺序**运行，不并行。
 
 每个参与者只收到所选可见源 turn 和完整问题。完整 consultant system prompt 将历史视为不可信证据；Agent 范围限制不暴露工具，并关闭可选 runtime context。参与者互相看不到回答。主 Agent 收到全部私下回答，并负责比较与最终判断。
@@ -78,42 +88,35 @@ Discussion 不恢复或写入任何被选源会话。DSH 为每次模型调用�
 
 参与者一致不等于事实验证。`fetch_session` 始终可独立核查精确持久化源上下文。Discussion 不自动调用它，也不把它作为静默 fallback。证据范围最多 20 turns；每位参与者的 `max_chars` 为 100–24000，并明确报告截断。
 
-## 工具与命令
+## Agent 工具
 
-| 工具 | 命令 | 用途 |
-|---|---|---|
-| `recall_memory` | `/memory-search` | 对持久化 DSH turns 做全局／项目实体召回 |
-| `discuss_memory` | — | 与 1–3 个用户确认的历史 DSH 参与 Agent 顺序、隔离咨询 |
-| `review_jev_filtered` | `/memory-review` | 显式 Jev 误过滤审计 |
-| `fetch_session` | `/memory-read` | 包含两端的持久化源 turn |
-| `get_memory_stats` | `/memory-stats` | 同步后 DSH 主会话／events／turns 总数 |
-| `backfill_memory` | `/memory-backfill` | 显式全量 DSH 索引重建，源日志不变 |
-| — | `/memory-status`、`/memory-help` | 配置／生命周期与帮助 |
+| 工具 | 用途 |
+|---|---|
+| `recall_memory` | 对持久化 DSH turns 做全局／项目实体召回 |
+| `discuss_memory` | 与 1–3 个用户确认的历史 DSH 参与 Agent 顺序、隔离咨询 |
+| `review_jev_filtered` | 显式 Jev 误过滤审计 |
+| `fetch_session` | 包含两端的持久化源 turn |
+| `get_memory_stats` | 同步后 DSH 主会话／events／turns 总数 |
+| `backfill_memory` | 显式全量 DSH 索引重建，源日志不变 |
 
-```text
-/memory-search {"entities":["database","sqlite"],"question":"之前如何决定数据库方案？","limit":20}
-/memory-review {"entities":["database","sqlite"],"question":"之前如何决定数据库方案？"}
-/memory-read {"session_id":"<精确DSH-ID>","from_turn_index":0,"to_turn_index":0,"max_chars":12000}
-/memory-stats
-/memory-backfill
-```
-
-读取须精确的持久化 ID、同时提供包含两端 index，最多 20 个 index；`max_chars` 100–24000，默认 12000。不恢复／修改会话。Discussion 没有 slash command，因为它需要发起 Agent 已选的模型路由。Backfill 仅显式 DSH backfill／rescan，**不是导入其他宿主历史**。Stats／backfill 只接受空对象。
+读取须精确的持久化 ID、同时提供包含两端的 index，最多 20 个 index。`max_chars` 为 100–24000，默认 12000。读取不恢复或修改会话。Discussion 必须先保存 Plugin Manager 开关。Backfill 仅用于显式 DSH backfill 或 rescan，不导入其他宿主历史。统计与 backfill 只接受空对象。
 
 每个工具结果都会追加一个独立的两行调用时配置快照，例如：
 
 ```text
-Config · Jev=off (nimble; disabled) · Obsidian=off · manageOllama=off · limit=20
+Config · Discussion=off · Jev=off (nimble; disabled) · Obsidian=off · manageOllama=off · limit=20
 Env · DSH_HOME=unset · API key=local-placeholder
 ```
 
-它属于工具结果文本，因此 Web 工具卡片和 Agent 上下文都可见。快照只报告开关、Jev 模型／运行状态、limit，以及 `DSH_HOME` 和所配置 API-key 环境变量的 `set`／`unset`；绝不显示凭据、vault、数据库、endpoint 或文件系统路径值。命令不追加该紧凑快照；`/memory-status` 只返回一个不嵌入包版本号的 JSON 状态结果。
+它属于工具结果文本，因此 Web 工具卡片和 Agent 上下文都可见。快照只报告开关、Jev 模型／运行状态、limit，以及 `DSH_HOME` 和所配置 API-key 环境变量的 `set`／`unset`；绝不显示凭据、vault、数据库、endpoint 或文件系统路径值。
 
 ## 本地／远程 Jev
 
-默认关闭：`nimble`、`http://127.0.0.1:11434`、`manageOllama: false`。Status／help／配置 Save 不启动模型、不导出笔记。
+默认关闭：`nimble`、`http://127.0.0.1:11434`、`manageOllama: false`。查看或保存配置不启动模型、不导出笔记。
 
 ```yaml
+discussion:
+  enabled: false
 recall:
   limit: 20
 jev:
@@ -137,13 +140,14 @@ obsidian:
 
 ```text
 Plugin Manager → DSH Session Memory 行 → Configure
+├─ Multi-agent Discussion：enabled
 ├─ Recall：limit
 ├─ Jev：enabled / model / baseURL / apiKeyEnv / manageOllama / contextWindow
 ├─ Obsidian：enabled / vaultPath
 └─ 保存 / 丢弃编辑 / 暂存继承默认值
 ```
 
-九字段。编辑／reset 先暂存，Save 前校验和 revision fencing；可选留空继承。拒绝 Save 保留 draft，不静默 stale overwrite。Save 取消等待旧工作、不 remount 工具，也不进行历史同步、模型请求或 note 写入。真实 plugin-row slot／browser artifact 才是 GUI，导出 Host Config 不等于 GUI。
+共十个字段。Discussion 默认关闭。编辑／reset 先暂存，Save 前校验和 revision fencing；可选留空继承。拒绝 Save 保留 draft，不静默 stale overwrite。Save 会立即应用 Discussion 开关；关闭开关会取消正在执行的 Discussion。Save 也会取消等待旧的模型／导出工作，不 remount 工具，也不进行历史同步、模型请求或 note 写入。真实 plugin-row slot／browser artifact 才是 GUI，导出 Host Config 不等于 GUI。
 
 Obsidian 默认 off，已有绝对 Host vault，不创建目录。每个完成 recall／audit 写唯一 `wx`／`0600` Markdown，含有界结果及精确坐标。失败／取消只删除自有 partial file。不自动 wikilinks、ontology、AGENTS／rules／skills 或 vault sync；外部同步可能分发私有 DSH 历史。
 

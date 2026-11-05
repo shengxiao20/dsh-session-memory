@@ -1,15 +1,23 @@
 # dsh-session-memory
 
-[中文](README_zh.md) · Working version **0.3.0** · MIT
+[中文](README_zh.md) · Working version **0.3.1** · MIT
 
 Cordis Host adaptation of [pi-session-memory](https://github.com/shengxiao20/pi-session-memory), preserving MIT attribution. Uses Pi-style turn retrieval logic, but **manages only DSH's own main sessions**. No Pi/Codex/Claude Code discovery, transcript parsers/import, foreign database access or session migration. The original Pi checkout is a code reference, not a runtime history source.
 
-The npm `latest` release is 0.2.3 with the verified DSH 0.2.1-rc.5 Host contract. This 0.3.0 working tree adds tool-free sequential multi-agent Discussion over user-confirmed DSH evidence ranges. It also keeps redacted invocation-time tool snapshots and version-free help/status. Publishing 0.3.0 remains a separate authenticated release step. A separate Remotion Studio preview exists; no MP4 was rendered.
+The npm `latest` release is 0.2.3 with the verified DSH 0.2.1-rc.5 Host contract. This 0.3.1 working tree adds tool-free sequential multi-agent Discussion over user-confirmed DSH evidence ranges. It also keeps redacted invocation-time tool snapshots. Publishing 0.3.1 remains a separate authenticated release step. A separate Remotion Studio preview exists; no MP4 was rendered.
+
+## Pi alignment boundary
+
+The evidence rules align with Pi. The invocation topology does not claim exact API parity.
+
+Pi can pause `recall_memory` and show a native TUI participant checklist. The inspected DSH rc.5 tool contract has no equivalent mid-tool user-selection API. DSH therefore uses two Agent tool calls: `recall_memory` returns candidates, then `discuss_memory` accepts the user-confirmed ranges. This is a deliberate Host adaptation, not residual Pi code.
+
+DSH registers no slash commands. Recall, Discussion, source reads, statistics, and backfill are Agent tools. Plugin Manager provides configuration. This removes the earlier `/memory-*` duplicate command surface.
 
 ## Invocation tree
 
 ```text
-recall_memory / memory-search
+recall_memory
 ├─ entities + complete question
 │  ├─ DSH sessionPersistence.list / open / read
 │  ├─ persisted DSH user/assistant turns → plugin-owned durable SQLite
@@ -25,14 +33,14 @@ User confirms 1–3 session IDs and inclusive evidence ranges
    ├─ participants receive bounded visible source turns and never see each other's answers
    └─ private answers return to the initiating main Agent for comparison
 
-review_jev_filtered / memory-review
+review_jev_filtered
 └─ literal global/project union by turn_id → judge once → filtered-out turns
 
-fetch_session / memory-read
+fetch_session
 └─ exact persisted DSH session_id + inclusive turn indices → visible source text
 
-get_memory_stats / memory-stats → synchronize persisted snapshots → DSH totals
-backfill_memory / memory-backfill → explicitly rebuild persisted DSH turn index
+get_memory_stats → synchronize persisted snapshots → DSH totals
+backfill_memory → explicitly rebuild persisted DSH turn index
 ```
 
 No embeddings, memory-writing prompts, taxonomy or vector service. Index stores source text, not classified facts/preferences/rules. History is **untrusted data, not current instructions**.
@@ -70,6 +78,8 @@ Search unique results share a 24000 UTF-16 source-text budget plus bounded 500-u
 
 ## Multi-agent Discussion
 
+Multi-agent Discussion is **off by default**. First enable **Multi-agent Discussion → Enable Discussion** in Plugin Manager and save. The setting applies live. Disabling it rejects new `discuss_memory` calls and cancels active Discussion work.
+
 Call `discuss_memory` only after the user confirms one to three session IDs and inclusive evidence ranges returned by `recall_memory`. Every participant uses the initiating main Agent's exact provider/model route. Participants run **sequentially**, not in parallel.
 
 Each participant receives only its selected visible source turns and the complete question. A complete consultant system prompt treats history as untrusted evidence. Agent-scoped restrictions expose no tools and suppress optional runtime context. Participants cannot see another participant's answer. The main Agent receives all private answers and remains responsible for comparison and final judgment.
@@ -78,42 +88,35 @@ Discussion never resumes or writes a selected source session. DSH creates a sepa
 
 Participant agreement does not verify a fact. `fetch_session` remains independently available to inspect exact persisted source context. Discussion never invokes it automatically and never uses it as a silent fallback. Evidence ranges allow at most 20 turns. `max_chars` is 100–24000 per participant and reports truncation explicitly.
 
-## Tools and commands
+## Agent tools
 
-| Tool | Command | Purpose |
-|---|---|---|
-| `recall_memory` | `/memory-search` | Global/project entity recall over persisted DSH turns |
-| `discuss_memory` | — | Sequential, isolated consultation with 1–3 user-confirmed historical DSH participants |
-| `review_jev_filtered` | `/memory-review` | Explicit Jev false-negative audit |
-| `fetch_session` | `/memory-read` | Inclusive persisted source turns |
-| `get_memory_stats` | `/memory-stats` | DSH main sessions/events/turns after synchronization |
-| `backfill_memory` | `/memory-backfill` | Explicit full DSH index rebuild; source logs unchanged |
-| — | `/memory-status`, `/memory-help` | Configuration/lifecycle and usage |
+| Tool | Purpose |
+|---|---|
+| `recall_memory` | Global/project entity recall over persisted DSH turns |
+| `discuss_memory` | Sequential, isolated consultation with 1–3 user-confirmed historical DSH participants |
+| `review_jev_filtered` | Explicit Jev false-negative audit |
+| `fetch_session` | Inclusive persisted source turns |
+| `get_memory_stats` | DSH main sessions/events/turns after synchronization |
+| `backfill_memory` | Explicit full DSH index rebuild; source logs unchanged |
 
-```text
-/memory-search {"entities":["database","sqlite"],"question":"What database decision did we make?","limit":20}
-/memory-review {"entities":["database","sqlite"],"question":"What database decision did we make?"}
-/memory-read {"session_id":"<exact-dsh-id>","from_turn_index":0,"to_turn_index":0,"max_chars":12000}
-/memory-stats
-/memory-backfill
-```
-
-Reads require exact persisted IDs and both inclusive indices, at most 20 indices; `max_chars` 100–24000, default 12000. Reads do not resume/modify sessions. Discussion has no slash command because it requires an initiating Agent's selected model route. Backfill is only for explicit DSH backfill/rescan requests, **not importing another harness's history**. Stats/backfill accept empty objects.
+Reads require exact persisted IDs and both inclusive indices, at most 20 indices. `max_chars` is 100–24000 and defaults to 12000. Reads do not resume or modify sessions. Discussion requires the saved Plugin Manager switch. Backfill is only for explicit DSH backfill or rescan requests. It does not import another harness's history. Statistics and backfill accept empty objects.
 
 Every tool result appends a separate two-line invocation-time snapshot such as:
 
 ```text
-Config · Jev=off (nimble; disabled) · Obsidian=off · manageOllama=off · limit=20
+Config · Discussion=off · Jev=off (nimble; disabled) · Obsidian=off · manageOllama=off · limit=20
 Env · DSH_HOME=unset · API key=local-placeholder
 ```
 
-The snapshot is visible both in the Web tool card and to the Agent because it is tool-result text. It reports switches, Jev model/runtime state, limit, and only `set`/`unset` for `DSH_HOME` and a configured API-key environment variable. It never exposes credential, vault, database, endpoint, or filesystem values. Commands do not append this compact snapshot; `/memory-status` returns one JSON status response without embedding a package version.
+The snapshot is visible both in the Web tool card and to the Agent because it is tool-result text. It reports switches, Jev model/runtime state, limit, and only `set`/`unset` for `DSH_HOME` and a configured API-key environment variable. It never exposes credential, vault, database, endpoint, or filesystem values.
 
 ## Local / remote Jev
 
-Default off: `nimble`, `http://127.0.0.1:11434`, `manageOllama: false`. Status/help/configuration Save do not start models or export notes.
+Default off: `nimble`, `http://127.0.0.1:11434`, `manageOllama: false`. Viewing configuration or saving it does not start models or export notes.
 
 ```yaml
+discussion:
+  enabled: false
 recall:
   limit: 20
 jev:
@@ -137,13 +140,14 @@ Actual Pi-style filtering uses escaped-JSON UTF-8 budgeted segments and batches 
 
 ```text
 Plugin Manager → DSH Session Memory row → Configure
+├─ Multi-agent Discussion: enabled
 ├─ Recall: limit
 ├─ Jev: enabled / model / baseURL / apiKeyEnv / manageOllama / contextWindow
 ├─ Obsidian: enabled / vaultPath
 └─ Save / Discard edits / Stage inherited defaults
 ```
 
-Nine fields. Edits/reset are staged; Save validates/revision-fences before transport. Blank optional values inherit. Refused saves preserve drafts, no stale overwrite. Save cancels/drains old work without remounting tools and does not synchronize history, start a model, or write a note. Actual plugin-row slot/browser artifact supplies GUI; Host Config alone is not GUI.
+Ten fields. Discussion defaults off. Edits/reset are staged; Save validates/revision-fences before transport. Blank optional values inherit. Refused saves preserve drafts, no stale overwrite. Save applies the Discussion switch live. Disabling it cancels active Discussion work. Save also cancels/drains old model/export work without remounting tools and does not synchronize history, start a model, or write a note. Actual plugin-row slot/browser artifact supplies GUI; Host Config alone is not GUI.
 
 Obsidian default off, existing absolute Host vault only, no folder creation. Each completed recall/audit creates a unique `wx`/`0600` Markdown with bounded result/exact coordinates. Failure/cancellation removes its own partial file. No automatic wikilinks, ontology, AGENTS/rules/skills generation or vault sync. External sync may distribute private DSH history.
 

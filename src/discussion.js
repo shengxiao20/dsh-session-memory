@@ -85,18 +85,39 @@ async function waitForAgent(agent, signal) {
 }
 
 export class DiscussionRuntime {
-  constructor(agents, historySource) {
+  constructor(agents, historySource, enabled = false) {
     this.agents = agents;
     this.historySource = historySource;
+    this.enabled = enabled;
+    this.controller = new AbortController();
+    this.pending = new Set();
+  }
+
+  reconfigure(enabled) {
+    if (typeof enabled !== 'boolean') throw new Error('discussion.enabled must be a boolean.');
+    if (this.enabled && !enabled) {
+      this.controller.abort(new Error('Multi-agent Discussion was disabled in Plugin Manager.'));
+      this.controller = new AbortController();
+    }
+    this.enabled = enabled;
   }
 
   async discuss(input, exec = {}) {
+    if (!this.enabled) throw new Error('Multi-agent Discussion is disabled. Enable it in Plugin Manager and save the configuration.');
+    const signal = exec.signal ? AbortSignal.any([exec.signal, this.controller.signal]) : this.controller.signal;
+    const task = this._discuss(input, { ...exec, signal });
+    this.pending.add(task);
+    try { return await task; }
+    finally { this.pending.delete(task); }
+  }
+
+  async _discuss(input, exec) {
     const args = normalizeDiscussion(input);
     const mainAgent = exec.agent;
     if (!mainAgent?.session?.id) throw new Error('discuss_memory requires an initiating main DSH agent.');
     const answers = [];
     for (const participant of args.participants) {
-      exec.signal?.throwIfAborted();
+      exec.signal.throwIfAborted();
       answers.push(await this.askParticipant(mainAgent, participant, args.question, args.max_chars, exec.signal));
     }
     return {
@@ -108,6 +129,12 @@ export class DiscussionRuntime {
       consensus_is_verification: false,
       answers,
     };
+  }
+
+  async shutdown() {
+    this.enabled = false;
+    this.controller.abort(new Error('DSH Session Memory disposed.'));
+    await Promise.allSettled([...this.pending]);
   }
 
   async askParticipant(mainAgent, participant, question, maxChars, signal) {

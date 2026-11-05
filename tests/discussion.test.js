@@ -57,7 +57,7 @@ function fixture() {
       return { header: value.header, events: value.events, [Symbol.dispose]() {} };
     },
   };
-  return { runtime: new DiscussionRuntime(agents, historySource), calls, stored, original };
+  return { runtime: new DiscussionRuntime(agents, historySource, true), calls, stored, original };
 }
 
 const mainAgent = {
@@ -111,6 +111,30 @@ test('Discussion validates participant confirmation, bounds and initiating-agent
   const { runtime } = fixture();
   await assert.rejects(runtime.discuss({ participants: [{ session_id: 'current-main', from_turn_index: 0, to_turn_index: 0 }], question: 'q' }, { agent: mainAgent }), /active main session/);
   await assert.rejects(runtime.discuss(input, {}), /initiating main DSH agent/);
+});
+
+test('Discussion can be disabled and explicitly re-enabled', async () => {
+  const { runtime } = fixture();
+  runtime.reconfigure(false);
+  await assert.rejects(runtime.discuss(input, { agent: mainAgent }), /disabled.*Plugin Manager/i);
+  runtime.reconfigure(true);
+  const value = await runtime.discuss({ participants: [input.participants[0]], question: input.question }, { agent: mainAgent });
+  assert.equal(value.participant_count, 1);
+  await runtime.shutdown();
+  await assert.rejects(runtime.discuss(input, { agent: mainAgent }), /disabled.*Plugin Manager/i);
+});
+
+test('disabling Discussion cancels active work', async () => {
+  const historySource = {
+    observeSession: (_id, { signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }),
+  };
+  const runtime = new DiscussionRuntime({ create: async () => { throw new Error('Model must not start.'); } }, historySource, true);
+  const pending = runtime.discuss(input, { agent: mainAgent });
+  await Promise.resolve();
+  runtime.reconfigure(false);
+  await assert.rejects(pending, /disabled in Plugin Manager/i);
 });
 
 test('Discussion rejects incomplete source ranges instead of silently reducing evidence', async () => {

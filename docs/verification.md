@@ -1,12 +1,12 @@
-# Verification — DSH-only 0.3.0 working tree
+# Verification — DSH-only 0.3.1 working tree
 
 ## Requirement and environment
 
-Checked **2026-11-05 UTC+8**, Node **v22.22.2**, npm **10.9.7**, installed DSH **0.2.1-rc.5**. Package/lock working version **0.3.0**, DSH contract pinned to rc.5.
+Checked **2026-11-05 UTC+8**, Node **v22.22.2**, npm **10.9.7**, installed DSH **0.2.1-rc.5**. Package/lock working version **0.3.1**, DSH contract pinned to rc.5.
 
-Latest scope: **persisted DSH sessions only**, with sequential multi-agent Discussion over one to three user-confirmed DSH main-session evidence ranges. No `sessionQuery` injection/call/config override, DSH FTS5, token/phrase compatibility search, raw-event read API, Pi/Codex/Claude Code history discovery/import, foreign DB access or session migration. The original `../pi-session-memory` checkout is only a logic reference.
+Latest scope: **persisted DSH sessions only**, with opt-in sequential multi-agent Discussion over one to three user-confirmed DSH main-session evidence ranges. Discussion defaults off and requires an explicit saved Plugin Manager switch. No `sessionQuery` injection/call/config override, DSH FTS5, token/phrase compatibility search, raw-event read API, Pi/Codex/Claude Code history discovery/import, foreign DB access or session migration. The original `../pi-session-memory` checkout is only a logic reference.
 
-No commit, push or 0.3.0 npm publication was performed; npm `latest` is the published 0.2.3 with the same rc.5 Host contract. The active Web profile uses registry 0.2.3 with HMR explicitly enabled; this 0.3.0 working tree was verified in isolated unit/native/browser fixtures and was not substituted into the active profile. An independent Remotion Studio preview exists; no MP4 rendered. Foreign-root fixtures use isolated temporary HOME directories, never real user transcripts.
+No commit, push or 0.3.1 npm publication was performed; npm `latest` is the published 0.2.3 with the same rc.5 Host contract. The active Web profile uses registry 0.2.3 with HMR explicitly enabled; this 0.3.1 working tree was verified in isolated unit/native/browser fixtures and was not substituted into the active profile. An independent Remotion Studio preview exists; no MP4 rendered. Foreign-root fixtures use isolated temporary HOME directories, never real user transcripts.
 
 ## Current verification
 
@@ -19,27 +19,28 @@ npm pack --dry-run --json --cache "$PWD/.npm-cache"
 git diff --check
 ```
 
-- **58/58 unit tests PASS**: build/syntax, source-turn recall/read, DSH persistence adapter, multi-agent Discussion isolation/routing, Jev, durable index/lifecycle, UI/config, mixed-schema refusal, redacted tool-result configuration snapshots, and a single version-free `/memory-status` JSON response.
-- Both native smokes **PASS** with actual rc.5 `Sessions`, `Agents`, JSONL `sessionPersistence`, `Tools`, `Commands`, and Loader/Settings/ClientModuleRegistry. Neither smoke loads session-query-sqlite. Native registration is verified without a real model call; Discussion model behavior uses a deterministic Agent fixture and inspected rc.5 contracts.
-- Browser smoke **PASS** in Chrome with the built client; Host form and Plugin Manager layout remain fixtures.
+- **62/62 unit tests PASS**: build/syntax, source-turn recall/read, DSH persistence adapter, default-off multi-agent Discussion gating/isolation/routing/cancellation, Jev, durable index/lifecycle, UI/config, mixed-schema refusal, redacted tool-result configuration snapshots, and the tool-only public surface.
+- Both native smokes **PASS** with actual rc.5 `Sessions`, `Agents`, JSONL `sessionPersistence`, `Tools`, and Loader/Settings/ClientModuleRegistry. The native configuration smoke covers the explicit live Discussion switch. Neither smoke loads Commands or session-query-sqlite. Native registration is verified without a real model call; Discussion model behavior uses a deterministic Agent fixture and inspected rc.5 contracts.
+- Browser smoke **PASS** in Chrome with the built client. It stages, saves, and resets the bilingual Discussion switch. Host form and Plugin Manager layout remain fixtures.
 - Pack dry-run contains **44 files**. It includes `src/discussion.js`, `CHANGELOG.md`, `src/dsh-history-source.js`, `src/tool-config-summary.js`, and tests; it excludes foreign/migration modules, history DBs, vault/cache/evidence, node_modules and deleted root AGENTS.md.
 - `git diff --check` **PASS**.
 
-Logs: `/tmp/dsh-memory-0.3.0-unit.log`, `/tmp/dsh-memory-0.3.0-native.log`, `/tmp/dsh-memory-0.3.0-browser.log`, `/tmp/dsh-memory-0.3.0-pack.json`. The 0.2.3 package remains separate deployed evidence; earlier test/file snapshots cover prior or withdrawn designs and are not current evidence.
+Logs: `/tmp/dsh-memory-0.3.1-unit.log`, `/tmp/dsh-memory-0.3.1-native.log`, `/tmp/dsh-memory-0.3.1-browser.log`, `/tmp/dsh-memory-0.3.1-pack.json`. The 0.2.3 package remains separate deployed evidence; earlier test/file snapshots cover prior or withdrawn designs and are not current evidence.
 
 ## Active-profile smoke
 
 - Global `dsh --version` is **0.2.1-rc.5**; its base, Web and HMR packages are all rc.5.
 - The former rc.3 Web process exited via SIGINT in two seconds before global packages or the profile were changed.
 - The active profile installs registry `@shengxiao04/dsh-session-memory@0.2.3` and declares DSH rc.5. The profile patch explicitly sets both `hmr.disabled: false` and `dsh-session-memory.disabled: false`; the known `sessionController`/resolver reload risk remains relevant to future profile changes.
-- The active 0.2.3 profile is the screenshot/runtime baseline and still contains its old status version prefix. The 0.3.0 source keeps both the `VERSION` export and package-version text out of `/memory-help` and `/memory-status`; it is not claimed active before publication and upgrade.
-- This smoke deliberately used a local command rather than an LLM prompt. Provider quality, credential availability and model-side cancellation propagation are not claimed by it.
+- The active 0.2.3 profile is the screenshot/runtime baseline. The 0.3.1 source removes all `/memory-*` commands; it is not claimed active before publication and upgrade.
+- This smoke deliberately used Agent tools and Plugin Manager configuration rather than an LLM prompt. Provider quality, credential availability and model-side cancellation propagation are not claimed by it.
 
 ## Persistence and index guarantees tested
 
-- Required Host contracts are exactly `sessions`, `sessionPersistence`, `agents`, `tools`, `commands`; recall/read schemas contain only entity/question/limit search and inclusive turn reads. Discussion requires one to three exact main-session IDs, inclusive ranges, a complete question and an optional bounded character budget. Removed `query/cwd/session_id/cursor` search and `seq/before/after` read fields fail explicitly.
-- `/memory-status` has exactly one command registration and one JSON result per invocation. It contains no package-version field or text prefix; package metadata remains solely in `package.json`. Repeated rows in one DSH session therefore prove repeated command invocations, not duplicate plugin rendering.
-- All six tools append a second invocation-time text block with Jev enabled/model/runtime state, Obsidian, `manageOllama`, recall limit, `DSH_HOME` set/unset, and the configured API-key variable set/unset. The structured output/schema and command text are unchanged. Tests prove credentials, endpoint, vault, database and filesystem path values are absent; status errors propagate instead of being hidden.
+- Required Host contracts are exactly `sessions`, `sessionPersistence`, `agents`, and `tools`; no DSH Commands service is injected. Recall/read schemas contain only entity/question/limit search and inclusive turn reads. Discussion requires one to three exact main-session IDs, inclusive ranges, a complete question and an optional bounded character budget. Removed `query/cwd/session_id/cursor` search and `seq/before/after` read fields fail explicitly.
+- DSH registers no slash commands. Historical operations use six discoverable Agent tools, while Plugin Manager provides configuration. Pi's TUI can pause `recall_memory` for participant selection; DSH rc.5 has no equivalent mid-tool selection contract, so DSH uses `recall_memory` followed by `discuss_memory`.
+- All six tools append a second invocation-time text block with Discussion enabled state, Jev enabled/model/runtime state, Obsidian, `manageOllama`, recall limit, `DSH_HOME` set/unset, and the configured API-key variable set/unset. The structured output/schema stays unchanged. Tests prove credentials, endpoint, vault, database and filesystem path values are absent; status errors propagate instead of being hidden.
+- Discussion defaults off. The saved Plugin Manager switch gates `discuss_memory` and applies live. Enabling it does not start a model. Disabling it rejects new calls and cancels active Discussion work.
 - Discussion participants run sequentially with the initiating Agent's provider/model. Each gets a complete consultant prompt, an empty tool allow-list, suppressed optional runtime context and only its bounded source evidence. Selected source sessions remain unchanged. Child logs use `origin: subagent` plus positive `delegationDepth`, so index refresh and backfill exclude them.
 - Discussion returns explicit evidence turn IDs and truncation status. It states that agreement is not verification. `fetch_session` remains independently registered for exact source checks and is never invoked automatically or used as fallback.
 - `DshHistorySource` calls public `sessionPersistence.list`, `open(id, 'read')`, `handle.read`, and always awaits `handle.close`, including read failure. It does not parse physical JSONL/compression artifacts.

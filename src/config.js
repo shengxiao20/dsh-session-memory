@@ -5,6 +5,9 @@ import { validateConfig } from './config-values.js';
 export { localRoot, apiRoot } from './config-values.js';
 
 export const Config = Schema.object({
+  discussion: Schema.object({
+    enabled: Schema.boolean().default(false).description('Enable sequential multi-agent Discussion for user-confirmed historical DSH evidence.'),
+  }).volatile(),
   recall: Schema.object({ limit: Schema.number().step(1).min(1).max(50).default(20).description('Default top K per entity stage. No refill.') }).volatile(),
   jev: Schema.object({
     enabled: Schema.boolean().default(false).description('Enable System One relevance filtering; entity mode reports model unavailability explicitly.'),
@@ -25,6 +28,7 @@ export function normalizeConfig(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return validateConfig(input, isAbsolute);
   return validateConfig({
     ...input,
+    ...(Object.hasOwn(input, 'discussion') ? { discussion: isVolatile(input.discussion) ? input.discussion.get() : input.discussion } : {}),
     ...(Object.hasOwn(input, 'recall') ? { recall: isVolatile(input.recall) ? input.recall.get() : input.recall } : {}),
     ...(Object.hasOwn(input, 'jev') ? { jev: isVolatile(input.jev) ? input.jev.get() : input.jev } : {}),
     ...(Object.hasOwn(input, 'obsidian') ? { obsidian: isVolatile(input.obsidian) ? input.obsidian.get() : input.obsidian } : {}),

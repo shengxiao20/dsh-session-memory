@@ -4,7 +4,7 @@
     "access": "public",
     "registry": "https://registry.npmjs.org"
   },
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DSH-only persisted source-turn memory: plugin-owned SQLite, entity ranking, global/project dedup, local/remote Jev, history reads/stats/backfill and Obsidian. / 仅持久化 DSH 会话源 turn 召回、插件自有索引及历史管理。",
   "type": "module",
   "license": "MIT",

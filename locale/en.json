@@ -1,12 +1,15 @@
 {
   "meta": {
     "title": "DSH Session Memory",
-    "description": "DSH-only persisted source-turn recall: plugin-owned SQLite, entity ranking/global-project dedup, local/remote Jev, history reads/stats/backfill and Obsidian."
+    "description": "DSH-only persisted source-turn recall with optional multi-agent Discussion, plugin-owned SQLite, entity ranking/global-project dedup, local/remote Jev, history reads/stats/backfill and Obsidian."
   },
   "config": {
     "title": "DSH Session Memory configuration",
-    "summary": "Recall defaults, local/remote Jev and Obsidian export settings.",
-    "intro": "Changes are staged until Save. Saving applies live and cancels outstanding memory work; it does not start a model or write a note.",
+    "summary": "Multi-agent Discussion, recall defaults, local/remote Jev and Obsidian export settings.",
+    "intro": "Changes are staged until Save. Saving applies live and cancels outstanding memory work; it does not start a model, Discussion, or note export.",
+    "discussion": "Multi-agent Discussion",
+    "discussion.enabled": "Enable Discussion",
+    "discussion.enabled.hint": "Default off. When enabled, the main Agent can consult 1–3 user-confirmed historical DSH sessions sequentially. Each participant uses the main Agent's provider/model, has no tools, and receives only its selected evidence.",
     "recall": "Recall defaults",
     "recall.limit": "Top K per stage",
     "recall.limit.hint": "Integer 1–50, default 20. Filters/dedup never refill. Call arguments can set a different limit.",
