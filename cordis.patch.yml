@@ -1,11 +1,13 @@
-# Reuse the shipped backend; the inspected profile uses this in-memory path.
-# No second backend or transcript database is mounted.
-- id: session-query-sqlite
-  name: '@deepseek-ai/dsh-session-query-sqlite'
-  config:
-    path: ':memory:'
-    openAt: first-search
+# DSH persistence is authoritative. The plugin reads it through the public
+# sessionPersistence service and maintains only its own source-turn index.
 - insert:
     - id: dsh-session-memory
       name: '@shengxiao04/dsh-session-memory'
-      config: {}
+      config:
+        jev:
+          enabled: false
+          model: nimble
+          baseURL: 'http://127.0.0.1:11434'
+          manageOllama: false
+        obsidian:
+          enabled: false

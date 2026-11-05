@@ -1,115 +1,165 @@
 # dsh-session-memory
 
-[中文](README_zh.md) · Version **0.1.3** · MIT
+[中文](README_zh.md) · Working version **0.3.0** · MIT
 
-A DSH-only fork of [pi-session-memory](https://github.com/shengxiao20/pi-session-memory), rebuilt as a Cordis Host bundle. Search prior DSH conversations, then read the original text around an exact event. No Pi extension API or external-agent bridge remains in the runtime.
+Cordis Host adaptation of [pi-session-memory](https://github.com/shengxiao20/pi-session-memory), preserving MIT attribution. Uses Pi-style turn retrieval logic, but **manages only DSH's own main sessions**. No Pi/Codex/Claude Code discovery, transcript parsers/import, foreign database access or session migration. The original Pi checkout is a code reference, not a runtime history source.
 
-## Scope
+The npm `latest` release is 0.2.3 with the verified DSH 0.2.1-rc.5 Host contract. This 0.3.0 working tree adds tool-free sequential multi-agent Discussion over user-confirmed DSH evidence ranges. It also keeps redacted invocation-time tool snapshots and version-free help/status. Publishing 0.3.0 remains a separate authenticated release step. A separate Remotion Studio preview exists; no MP4 was rendered.
 
-- **Only DSH main sessions** in the active DSH service corpus, including persisted and live sessions and ordinary main-session forks.
-- Excludes headers marked `origin: subagent` or positive `delegationDepth`; no agent/provider discovery, messaging, or lineage traversal.
-- Uses the existing `ctx.sessionQuery` backend and its local derived search index. No second database, JSONL directory scanning, hardcoded home paths, or writes to session logs.
-- No foreign-runtime import, session migration/resume, remote relevance model, Ollama management, or Obsidian/export subsystem.
-- Search is global within the active corpus unless an explicit exact `cwd` or `session_id` is supplied. This is **not** a current-workspace-only access boundary. Install only in a trusted local profile where searching that corpus is intended.
-
-## Install
-
-Install `@shengxiao04/dsh-session-memory@0.1.3` through DSH Plugin Manager's **Install bundle** action once that version is published, or ask the DSH agent to call:
-
-```json
-{"action":"install_bundle","target":"@shengxiao04/dsh-session-memory@0.1.3","enabled":true}
-```
-
-For local development or before publication, the same action accepts the absolute checkout directory instead of the npm spec. The package uses the publisher's personal scope; the unscoped name `dsh-session-memory` belongs to a different project. No new GitHub repository has been created.
-
-Installation requires profile-management approval and affects every session in the current profile. The bundle has no dependencies, build steps, or install scripts. It adds its own Host row and overrides the shipped `session-query-sqlite` row to `path: ':memory:'`, `openAt: first-search` (the inspected profile's existing path was already `:memory:`). It does not create a second backend, touch session logs, or enable external providers. Removing/disabling the bundle removes this override too. If your profile uses a custom disk index or custom query settings, restate that full backend config in your higher-priority profile patch with `openAt: first-search`; Loader replaces `config` wholesale.
-
-**Runtime:** Node 22+ and DSH **0.2.1-rc.3** (the exact inspected and native-smoke-tested version; manifest intentionally pins it). The profile must already provide `tools`, `commands`, and a searchable `sessionQuery`, normally `@deepseek-ai/dsh-session-query-sqlite`. A persistence backend is needed to search history after restarts. The existing SQLite backend must not use `openAt: never`. Missing services leave the bundle inactive; disabled search fails explicitly rather than starting another index or falling back to filesystem scans. Check Plugin Manager for activation state.
-
-## Agent tools
-
-### `recall_memory`
-
-Optional tool parameters accept either omission or `null` (use `null` when a strict function-calling interface requires every field). Required query/session ID/seq fields remain non-nullable; empty strings are rejected.
-
-Use when a question refers to previous work, decisions, or conversations.
-
-```json
-{"query":"database"}
-{"query":"database","cwd":"/absolute/project/path","limit":20}
-{"query":"database","session_id":"session-exact-id"}
-```
-
-| Parameter | Behavior |
-|---|---|
-| `query` | Required nonempty literal word/phrase, at most 1000 characters. Whitespace normalized. |
-| `cwd` | Optional exact recorded directory, not a directory basename/fuzzy match. Cannot combine with `session_id`. |
-| `session_id` | Optional exact DSH session ID; searches events within it. Cannot combine with `cwd`. |
-| `limit` | Native page size 1–50, default 20. Must remain the same for pagination. |
-| `cursor` | Previous `next_cursor`; repeat the same normalized query, scope, and limit. |
-
-Global results contain one strongest event per matching session. Within-session results contain matching events. Each includes `session_id`, zero-based `seq`, type, timestamp, surface and a bounded snippet. Global hits are checked against authoritative headers before exposure, because indexed headers can omit origin. A page can contain fewer than `limit` matches, or zero eligible matches, after excluding subagents; follow `next_cursor` if present. No refill, duplicate index, hidden extra query, or altered backend ranking occurs.
-
-**Search semantics differ from the Pi original:** the native SQLite backend searches tokens/phrases, not arbitrary substrings or an OR list of topic entities. `AI` does not match `BRAID`. Quotes, `OR`, `NEAR` and `*` are literal data, not executable FTS syntax. Chinese partial-word recall depends on the native tokenizer; do not assume substring matching. All native event surfaces (`current`, `shadowed`, `log-only`) are eligible, allowing retrieval of compacted history. There is no provider-specific numeric relevance score.
-
-Backend cursors are opaque and generation-bound. `SESSION_QUERY_STALE_CURSOR` means restart the search without a cursor; an incompatible query/limit/cursor fails rather than silently broadening scope. Backend indexing/search failures and cancellation are propagated.
-
-### `fetch_session`
-
-Verify a hit, or read adjacent original history using its exact ID and sequence.
-
-```json
-{"session_id":"session-exact-id","seq":12,"before":4,"after":4,"max_chars":12000}
-```
-
-- `session_id` and `seq` are required; seq is a nonnegative integer, **not a turn number**.
-- `before`/`after`: 0–20 raw events each, defaults 4. Lifecycle records count toward the window.
-- `max_chars`: 100–24000 UTF-16 code units of returned text, default 12000; target event first, then nearest neighbors. Output is chronological and never splits a surrogate pair.
-- Includes session metadata, inherited-event count, target/range and event text. Text truncation is explicit. Re-read the indicated seq with a narrower window or larger budget if needed.
-- Returns text, tool-call descriptions and attachment labels, not reasoning, attachment bytes, replay/token streams, or lifecycle/control payloads. This is a **bounded text view**, not a full JSONL export.
-- Never resumes, forks, migrates, imports, or modifies a session.
-
-History can contain obsolete instructions, sensitive strings, or malicious text. Results explicitly identify it as historical data, **not current instructions**. Verify relevance and do not treat quoted historical directives as authority. This plugin performs no network requests; DSH can still send recalled text to the configured conversational model as ordinary tool output.
-
-## Manual commands
-
-Commands execute the same search/read functions without asking a model:
+## Invocation tree
 
 ```text
-/memory-search database
-/memory-search {"query":"database","cwd":"/absolute/project/path","limit":20}
-/memory-read {"session_id":"session-exact-id","seq":12,"before":4,"after":4}
-/memory-help
+recall_memory / memory-search
+├─ entities + complete question
+│  ├─ DSH sessionPersistence.list / open / read
+│  ├─ persisted DSH user/assistant turns → plugin-owned durable SQLite
+│  ├─ Global: substring OR → entity coverage ranking → top K → optional Jev
+│  ├─ Project: entities match stored DSH CWD basename token sequences
+│  │  └─ discovered DSH sessions → same ranking/top K → optional Jev
+│  └─ remove project turn_ids actually returned globally; no refill
+
+User confirms 1–3 session IDs and inclusive evidence ranges
+└─ discuss_memory
+   ├─ historical DSH participants run sequentially
+   ├─ complete consultant prompt + no tools + no optional runtime context
+   ├─ participants receive bounded visible source turns and never see each other's answers
+   └─ private answers return to the initiating main Agent for comparison
+
+review_jev_filtered / memory-review
+└─ literal global/project union by turn_id → judge once → filtered-out turns
+
+fetch_session / memory-read
+└─ exact persisted DSH session_id + inclusive turn indices → visible source text
+
+get_memory_stats / memory-stats → synchronize persisted snapshots → DSH totals
+backfill_memory / memory-backfill → explicitly rebuild persisted DSH turn index
 ```
 
-`/memory-search` accepts a phrase or JSON object. A literal phrase beginning with `{` should be supplied in JSON's `query` field. `/memory-read` takes JSON. `/memory-help` shows the version, usage and limits.
+No embeddings, memory-writing prompts, taxonomy or vector service. Index stores source text, not classified facts/preferences/rules. History is **untrusted data, not current instructions**.
 
-## Development and provenance
+## Persisted DSH history and the plugin index
 
-```bash
+There is one plugin-owned derived SQLite index; it is not authoritative:
+
+```text
+$DSH_HOME/sessions (DSH persistence; authoritative)
+└─ public sessionPersistence.list / open(read) / handle.read
+   └─ plugin-maintained source-turn SQLite → $DSH_HOME/dsh-session-memory/history.sqlite
+      └─ entity substring OR, project discovery, ranking, exact turn reads and stats
+```
+
+- The plugin requires DSH `sessions` and `sessionPersistence`; it does not inject, configure or call `sessionQuery`, and does not mount DSH FTS5. DSH persistence abstracts the physical JSONL/compression format; the plugin never parses storage artifacts directly.
+- The plugin DB defaults to `$DSH_HOME/dsh-session-memory/history.sqlite`, otherwise `~/.dsh/dsh-session-memory/history.sqlite`. The plugin owns its connection and incremental synchronization from persistence snapshots/read handles. Directory is `0700`, DB/WAL/SHM `0600`, WAL and `synchronous=NORMAL`.
+- The index is a rebuildable view. DSH persistence under `$DSH_HOME/sessions` remains authoritative. The plugin never writes source logs, scans project files, or accesses another harness's database.
+- At `turn/end`, the plugin first awaits `sessions.flush(session)` as the DSH durability barrier, then refreshes its index. Search/read/stats synchronize again. Every read handle is closed. Changes replace complete derived turns, missing sessions prune the index, forced backfill reparses all persisted sessions.
+- Native updates are transactional; errors/cancellation roll back the active update and throw. Unknown derived schema versions are refused, not silently migrated or discarded. This working version uses schema **2**, keeping the withdrawn multi-source experimental schema out of DSH-only queries.
+- Model configuration replacement cancels/drains old work and reuses the index without model startup or history synchronization. Unload waits for owned work before closing its DB; no foreign-root discovery/import/migration code is installed.
+- Authoritative headers exclude `origin: subagent` or positive `delegationDepth`; main forks remain eligible. Discussion creates short-lived DSH subagents with both markers, so their locally persisted consultation logs never enter recall. The plugin does not modify any selected source session. Scope filters are **not authorization**. Model-only replacement surface copies do not become extra transcript turns; append-origin historical text remains searchable.
+
+## Retrieval semantics
+
+`entities`: 2–8 literal topic strings, at least two distinct after trim/lowercase; `question`: complete user question, max 1000 characters. SQLite `instr(lower(user_text || ' ' || reply_text), entity) > 0`, OR across entities. Built-in case folding is ASCII; other Unicode remains literal. `AI` can match `BRAID`, `card` can match `wildcard`; punctuation is data, not FTS operators.
+
+Each distinct matching entity adds one point—not frequency. Order: coverage descending, user timestamp descending, stable turn ID. `limit`: **per stage** 1–50, default `recall.limit` (20). No refill after filtering/dedup. Entity recall has no cursor and accepts only `entities`, complete `question`, and optional `limit`.
+
+Project discovery only uses entities and **stored DSH CWD final-directory token sequences**, never implicit current runtime/project/session/time. Bounded project candidates can appear even when no transcript literal matches. Ordinary recall filters global then project serially and removes only actually retained global turn IDs. Audit unions literal candidates first, judges once; no cached recall output.
+
+Turn ID: `dsh:<session_id>:<user-event-seq>`. Exact inclusive `seq/end_seq` are source-event coordinates. Textual users start slices; image-only users occupy an index/end preceding ownership without becoming searchable text. Visible assistant text is aggregated, tool names retained. Thinking, binary attachments and tool-result payloads are omitted.
+
+Search unique results share a 24000 UTF-16 source-text budget plus bounded 500-unit excerpts, truncation explicit. Jev sees full visible source-turn text **before** output truncation. Fetch exact turn coordinates for more context.
+
+## Multi-agent Discussion
+
+Call `discuss_memory` only after the user confirms one to three session IDs and inclusive evidence ranges returned by `recall_memory`. Every participant uses the initiating main Agent's exact provider/model route. Participants run **sequentially**, not in parallel.
+
+Each participant receives only its selected visible source turns and the complete question. A complete consultant system prompt treats history as untrusted evidence. Agent-scoped restrictions expose no tools and suppress optional runtime context. Participants cannot see another participant's answer. The main Agent receives all private answers and remains responsible for comparison and final judgment.
+
+Discussion never resumes or writes a selected source session. DSH creates a separate short-lived subagent session for each model call. Its local persistence record is marked `origin: subagent` with positive `delegationDepth`, so recall and backfill exclude it. This is local isolation, not ephemeral storage.
+
+Participant agreement does not verify a fact. `fetch_session` remains independently available to inspect exact persisted source context. Discussion never invokes it automatically and never uses it as a silent fallback. Evidence ranges allow at most 20 turns. `max_chars` is 100–24000 per participant and reports truncation explicitly.
+
+## Tools and commands
+
+| Tool | Command | Purpose |
+|---|---|---|
+| `recall_memory` | `/memory-search` | Global/project entity recall over persisted DSH turns |
+| `discuss_memory` | — | Sequential, isolated consultation with 1–3 user-confirmed historical DSH participants |
+| `review_jev_filtered` | `/memory-review` | Explicit Jev false-negative audit |
+| `fetch_session` | `/memory-read` | Inclusive persisted source turns |
+| `get_memory_stats` | `/memory-stats` | DSH main sessions/events/turns after synchronization |
+| `backfill_memory` | `/memory-backfill` | Explicit full DSH index rebuild; source logs unchanged |
+| — | `/memory-status`, `/memory-help` | Configuration/lifecycle and usage |
+
+```text
+/memory-search {"entities":["database","sqlite"],"question":"What database decision did we make?","limit":20}
+/memory-review {"entities":["database","sqlite"],"question":"What database decision did we make?"}
+/memory-read {"session_id":"<exact-dsh-id>","from_turn_index":0,"to_turn_index":0,"max_chars":12000}
+/memory-stats
+/memory-backfill
+```
+
+Reads require exact persisted IDs and both inclusive indices, at most 20 indices; `max_chars` 100–24000, default 12000. Reads do not resume/modify sessions. Discussion has no slash command because it requires an initiating Agent's selected model route. Backfill is only for explicit DSH backfill/rescan requests, **not importing another harness's history**. Stats/backfill accept empty objects.
+
+Every tool result appends a separate two-line invocation-time snapshot such as:
+
+```text
+Config · Jev=off (nimble; disabled) · Obsidian=off · manageOllama=off · limit=20
+Env · DSH_HOME=unset · API key=local-placeholder
+```
+
+The snapshot is visible both in the Web tool card and to the Agent because it is tool-result text. It reports switches, Jev model/runtime state, limit, and only `set`/`unset` for `DSH_HOME` and a configured API-key environment variable. It never exposes credential, vault, database, endpoint, or filesystem values. Commands do not append this compact snapshot; `/memory-status` returns one JSON status response without embedding a package version.
+
+## Local / remote Jev
+
+Default off: `nimble`, `http://127.0.0.1:11434`, `manageOllama: false`. Status/help/configuration Save do not start models or export notes.
+
+```yaml
+recall:
+  limit: 20
+jev:
+  enabled: true
+  model: your-system-one-model
+  baseURL: https://your-decision-api.example
+  apiKeyEnv: DSH_JEV_API_KEY
+  contextWindow: 8192
+  manageOllama: false
+obsidian:
+  enabled: false
+```
+
+Secret stays in **Host environment**, not browser/config. HTTP(S) roots allow deployment prefixes; SDK appends `/v1/systemone`. Embedded credentials, query/hash and redirects are rejected. Remote mode sends the complete question and candidate **DSH source text**; confirm data permission first. Configuring a URL does not prove System One/model/noul compatibility. Real-model/remote deployment tests are separate from HTTP fixtures.
+
+Enabled unmanaged mode requires contextWindow 1024–1048576; remote also requires `apiKeyEnv`. Local unmanaged compatibility may use SDK key `ollama`. Managed Ollama requires a local HTTP loopback root and explicit start/pull permission; only owned children are cancelled/awaited, never a pre-existing service.
+
+Actual Pi-style filtering uses escaped-JSON UTF-8 budgeted segments and batches <=64 questions, `max(segment noul) >= 0.5`, ranked order preserved/no refill. **Not single-request-per-turn/nonbatch.** Model failure is explicitly `unavailable` with literal results, no filtered-out judgment/retry until reconfigure/reload. Missing credentials/configuration errors/caller cancellation throw.
+
+## Configuration and Obsidian
+
+```text
+Plugin Manager → DSH Session Memory row → Configure
+├─ Recall: limit
+├─ Jev: enabled / model / baseURL / apiKeyEnv / manageOllama / contextWindow
+├─ Obsidian: enabled / vaultPath
+└─ Save / Discard edits / Stage inherited defaults
+```
+
+Nine fields. Edits/reset are staged; Save validates/revision-fences before transport. Blank optional values inherit. Refused saves preserve drafts, no stale overwrite. Save cancels/drains old work without remounting tools and does not synchronize history, start a model, or write a note. Actual plugin-row slot/browser artifact supplies GUI; Host Config alone is not GUI.
+
+Obsidian default off, existing absolute Host vault only, no folder creation. Each completed recall/audit creates a unique `wx`/`0600` Markdown with bounded result/exact coordinates. Failure/cancellation removes its own partial file. No automatic wikilinks, ontology, AGENTS/rules/skills generation or vault sync. External sync may distribute private DSH history.
+
+## Development / verification
+
+Inspected host **DSH 0.2.1-rc.5**, Node >=22 (SQLite experimental in Node 22). React external; no install-time build hook.
+
+```sh
+npm ci
 npm run test:all
-npm pack --dry-run
-# Optional real DSH backend smoke test (no user history/profile changes):
-DSH_CHECKOUT=/absolute/path/to/installed/dsh npm run test:native
+DSH_CHECKOUT="$(npm root -g)/@deepseek-ai/dsh" npm run test:native
+DSH_BROWSER='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npm run test:browser
+npm pack --dry-run --json --cache "$PWD/.npm-cache"
+git diff --check
 ```
 
-Unit tests use Node's built-in runner and fake services; no npm install is needed. The optional native smoke test uses installed DSH packages, an isolated Cordis context, fixture sessions and an in-memory FTS index. It does not mount into or read your active profile. See [verification](docs/verification.md) for the measured checks and limits.
+Use **`@shengxiao04/dsh-session-memory`**, not another project's unscoped package. Linked source changes do not reload a running profile. Actual GUI profile persistence/authorization, remote credentials/models and installation/restart remain separate from isolated tests. See [verification](docs/verification.md) and [scope/logic alignment](docs/parity.md).
 
-Runtime files: [Host registration](index.js), [adapter](src/memory.js), [tool schemas](src/schemas.js), [bundle patch](cordis.patch.yml). Plugin resources include localized titles/descriptions and an original MIT-licensed SVG icon.
-
-Git history retains the upstream project; local branch `dsh-only` holds the adaptation and `upstream` points to the original repository. The original checkout is untouched. The fork starts from upstream's committed history, **not its uncommitted working-tree edits**; the legacy runtime is intentionally replaced, so none of those local Pi-only files are required. [LICENSE](LICENSE) retains upstream copyright attribution. Repository/homepage/bug fields are not falsely pointed at an unpublished DSH repository.
-
-## 0.1.3
-
-- Update the exact DSH compatibility pin from `0.2.1-rc.2` to `0.2.1-rc.3` after native contract inspection and isolated integration testing. Search/read logic and the bundle patch are unchanged.
-
-## 0.1.2
-
-- Enable the shipped in-memory query backend on first search; the default profile had `openAt: never`, which blocked live retrieval.
-
-- Support explicit `null` for optional tool parameters in strict function-calling interfaces, with the same existing defaults/scope. Real registry validation and a dedicated regression test cover it.
-
-- Replace Pi extension entry and multi-runtime transcript database with DSH Host tools/commands using native session queries.
-- Remove external runtime parsers, migration, cross-agent features, remote filtering and export.
-- Add bounded two-step discovery/read, explicit scope, native cursors and subagent-session exclusion.
-- Add zero-dependency tests, localized metadata and original icon.
+Earlier 0.1.5: real bilingual staged plugin-row configuration/live replacement; 0.1.4: local snippet Jev/Obsidian, Host schema only; 0.1.3: rc.3 pin; 0.1.2: native event baseline. Existing `.archify` diagrams depict **0.1.5**, not this turn-index architecture.

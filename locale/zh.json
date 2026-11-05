@@ -1,1 +1,40 @@
-{"meta":{"title":"DSH 会话记忆","description":"检索 DSH 自身历史会话，按需读取有界事件原文。仅使用本地历史，不导入外部会话，不连接其他 Agent。"}}
+{
+  "meta": {
+    "title": "DSH 会话记忆",
+    "description": "仅持久化 DSH 源 turn 召回、插件自有 SQLite、实体排序及全局项目去重、本地／远程 Jev、历史读取／统计／重建和 Obsidian。"
+  },
+  "config": {
+    "title": "DSH Session Memory 参数配置",
+    "summary": "召回默认值、本地／远程 Jev 和 Obsidian 导出设置。",
+    "intro": "参数先暂存，点击保存才提交。保存立即应用并取消正在执行的记忆查询，不启动模型或写笔记。",
+    "recall": "召回默认值",
+    "recall.limit": "每阶段 Top K",
+    "recall.limit.hint": "1–50 整数，默认 20。筛选／去重不补齐；调用参数可指定不同 limit。",
+    "jev": "Jev 连接",
+    "obsidian": "Obsidian 导出",
+    "jev.enabled": "启用 Jev",
+    "jev.enabled.hint": "默认关闭。召回使用输出截断前完整的可见源 turn；模型故障明确标记 unavailable，配置错误抛出。",
+    "jev.model": "模型",
+    "jev.model.hint": "显式本地或远程 System One 模型，默认 nimble。",
+    "jev.baseURL": "API 根地址",
+    "jev.baseURL.hint": "HTTP(S) 根地址，不得内嵌凭据、query、hash，拒绝重定向。远程模式会将完整问题及候选源 turn 文本发给该服务器。",
+    "jev.apiKeyEnv": "API Key 环境变量名",
+    "jev.apiKeyEnv.hint": "填写 Host 变量名，不是密钥本身。远程 Jev 必填且须在 Host 上设置；留空恢复继承值。",
+    "jev.manageOllama": "管理 Ollama",
+    "jev.manageOllama.hint": "明确允许启动本地 Ollama 和 pull 模型；不关闭已有服务。",
+    "jev.contextWindow": "上下文窗口",
+    "jev.contextWindow.hint": "1024–1048576 整数；启用非托管 Jev 必填，托管模式为可选上限。留空恢复继承值。",
+    "obsidian.enabled": "启用自动笔记",
+    "obsidian.enabled.hint": "每个完成的召回／审计页生成私有 Markdown；外部 vault 同步可能传播历史内容。",
+    "obsidian.vaultPath": "Vault 目录",
+    "obsidian.vaultPath.hint": "Host 上已存在的绝对目录，启用导出时必填；不创建文件夹。留空恢复继承值。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "已保存并应用配置。",
+    "refused": "保存被拒绝或配置已被其他编辑修改。保留草稿；先丢弃编辑读取当前值再重试。",
+    "discard": "丢弃编辑",
+    "reset": "暂存继承默认值",
+    "readOnly": "当前部署配置为只读。",
+    "unavailable": "配置暂不可用，请启用插件，必要时重载 profile／浏览器。"
+  }
+}

@@ -1,1 +1,40 @@
-{"meta":{"title":"DSH Session Memory","description":"Search DSH's own sessions and read bounded original event context. Local only; no external session import or agent bridging."}}
+{
+  "meta": {
+    "title": "DSH Session Memory",
+    "description": "DSH-only persisted source-turn recall: plugin-owned SQLite, entity ranking/global-project dedup, local/remote Jev, history reads/stats/backfill and Obsidian."
+  },
+  "config": {
+    "title": "DSH Session Memory configuration",
+    "summary": "Recall defaults, local/remote Jev and Obsidian export settings.",
+    "intro": "Changes are staged until Save. Saving applies live and cancels outstanding memory work; it does not start a model or write a note.",
+    "recall": "Recall defaults",
+    "recall.limit": "Top K per stage",
+    "recall.limit.hint": "Integer 1–50, default 20. Filters/dedup never refill. Call arguments can set a different limit.",
+    "jev": "Jev connection",
+    "obsidian": "Obsidian export",
+    "jev.enabled": "Enable Jev",
+    "jev.enabled.hint": "Default off. Recall judges complete visible source turns before output truncation; model failures are explicitly unavailable and configuration errors throw.",
+    "jev.model": "Model",
+    "jev.model.hint": "Explicit local or remote System One model, default nimble.",
+    "jev.baseURL": "API root",
+    "jev.baseURL.hint": "HTTP(S) API root, without embedded credentials, query, hash or redirects. Remote connections send the question and selected source-turn text to this server.",
+    "jev.apiKeyEnv": "API key environment variable",
+    "jev.apiKeyEnv.hint": "Host variable name, never the secret itself. Required for remote Jev; must be populated on the Host. Blank restores inheritance.",
+    "jev.manageOllama": "Manage Ollama",
+    "jev.manageOllama.hint": "Explicit permission to start local Ollama and pull this model. Never shuts down a pre-existing service.",
+    "jev.contextWindow": "Context window",
+    "jev.contextWindow.hint": "Integer 1024–1048576. Required for enabled unmanaged Jev; optional cap when managed. Blank restores inherited value.",
+    "obsidian.enabled": "Enable automatic notes",
+    "obsidian.enabled.hint": "Every completed recall/audit page creates a private Markdown note. External vault sync may distribute history.",
+    "obsidian.vaultPath": "Vault directory",
+    "obsidian.vaultPath.hint": "Existing absolute Host directory, required when enabled. No folders are created. Blank restores inherited value.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved; configuration applied.",
+    "refused": "Save refused or configuration changed elsewhere. Draft kept; discard to read current values before retrying.",
+    "discard": "Discard edits",
+    "reset": "Stage inherited defaults",
+    "readOnly": "Configuration is read-only in this deployment.",
+    "unavailable": "Configuration is not available. Enable the plugin and reload the profile/browser if needed."
+  }
+}
